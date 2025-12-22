@@ -1,0 +1,804 @@
+@page "/profile"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Boutique.Client.Services
+@using Boutique.Client.Models.DTOs
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.ProfileUpdateService ProfileService
+@inject Boutique.Client.Services.UserService UserService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="profile-container">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-user me-3"></i>My Profile
+        </h1>
+        <p class="page-subtitle">Manage your personal information and preferences</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Profile Card -->
+        <div class="col-lg-4">
+            <div class="card profile-card">
+                <div class="card-body text-center">
+                    <div class="profile-avatar">
+                        @if (userProfile != null)
+                        {
+                            <span>@userProfile.InitialLetter</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-user"></i>
+                        }
+                    </div>
+                    @if (isLoadingProfile)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <p class="mt-2">Loading profile...</p>
+                        </div>
+                    }
+                    else if (userProfile != null)
+                    {
+                        <h4 class="profile-name">@userProfile.FullName</h4>
+                        <p class="profile-role">@userProfile.Role</p>
+                        <p class="profile-email">@userProfile.Email</p>
+                    }
+                    else
+                    {
+                        <h4 class="profile-name">User Profile</h4>
+                        <p class="profile-role">Loading...</p>
+                        <p class="profile-email">Please wait...</p>
+                    }
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            @if (isLoading)
+                            {
+                                <div class="spinner-border spinner-border-sm" role="status"></div>
+                            }
+                            else
+                            {
+                                <h5>@totalCustomers</h5>
+                            }
+                            <span>Customers</span>
+                        </div>
+                        <div class="stat-item">
+                            <h5>0</h5>
+                            <span>Orders</span>
+                        </div>
+                        <div class="stat-item">
+                            <h5>₹0</h5>
+                            <span>Revenue</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100">
+                        <i class="fas fa-camera me-2"></i>Change Photo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Personal Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="profileModel" OnValidSubmit="SaveProfile">
+                        <DataAnnotationsValidator />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="profileModel.FirstName" class="form-control" id="firstName" placeholder="First Name" />
+                                    <label for="firstName">First Name</label>
+                                    <ValidationMessage For="@(() => profileModel.FirstName)" class="text-danger small" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="profileModel.LastName" class="form-control" id="lastName" placeholder="Last Name" />
+                                    <label for="lastName">Last Name</label>
+                                    <ValidationMessage For="@(() => profileModel.LastName)" class="text-danger small" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="email" class="form-control" id="email" value="@(userProfile?.Email ?? "")" readonly />
+                                    <label for="email">Email Address</label>
+                                    <small class="text-muted">Email cannot be changed</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="profileModel.PhoneNumber" class="form-control" id="phone" placeholder="Phone Number" />
+                                    <label for="phone">Phone Number</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="role" value="@(userProfile?.Role ?? "")" readonly />
+                                    <label for="role">Role</label>
+                                    <small class="text-muted">Role is assigned by administrator</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control" id="joinDate" value="@(userProfile?.JoinDate.ToString("yyyy-MM-dd") ?? "")" readonly />
+                                    <label for="joinDate">Join Date</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <InputTextArea @bind-Value="profileModel.Bio" class="form-control" id="bio" placeholder="Bio" style="height: 100px;" />
+                                    <label for="bio">Bio</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary me-2" disabled="@isSavingProfile">
+                                @if (isSavingProfile)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="ResetProfile">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lock me-2"></i>Change Password
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="passwordModel" OnValidSubmit="ChangePassword">
+                        <DataAnnotationsValidator />
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <InputText type="password" @bind-Value="passwordModel.CurrentPassword" class="form-control" id="currentPassword" placeholder="Current Password" />
+                                    <label for="currentPassword">Current Password</label>
+                                    <ValidationMessage For="@(() => passwordModel.CurrentPassword)" class="text-danger small" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" @bind-Value="passwordModel.NewPassword" class="form-control" id="newPassword" placeholder="New Password" />
+                                    <label for="newPassword">New Password</label>
+                                    <ValidationMessage For="@(() => passwordModel.NewPassword)" class="text-danger small" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" @bind-Value="passwordModel.ConfirmPassword" class="form-control" id="confirmPassword" placeholder="Confirm Password" />
+                                    <label for="confirmPassword">Confirm Password</label>
+                                    <ValidationMessage For="@(() => passwordModel.ConfirmPassword)" class="text-danger small" />
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(passwordMessage))
+                        {
+                            <div class="alert @(passwordMessageType == "success" ? "alert-success" : "alert-danger") mt-3" role="alert">
+                                @passwordMessage
+                            </div>
+                        }
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-warning" disabled="@isChangingPassword">
+                                @if (isChangingPassword)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="fas fa-key me-2"></i>Update Password
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ===================================
+       Profile Page - Enhanced Styles
+       =================================== */
+
+    .profile-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    .profile-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(99,102,241,0.05)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>') repeat;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    /* Enhanced Cards */
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .profile-card {
+        background: white;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 2rem;
+        border-radius: 20px 20px 0 0 !important;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1.4rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .card-body {
+        padding: 2rem;
+        position: relative;
+    }
+
+    /* Enhanced Profile Avatar */
+    .profile-avatar {
+        width: 140px;
+        height: 140px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3.5rem;
+        color: white;
+        margin: 0 auto 2rem;
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-avatar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .profile-avatar:hover::before {
+        left: 100%;
+    }
+
+    .profile-avatar:hover {
+        transform: scale(1.05);
+        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.4);
+    }
+
+    .profile-name {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
+    }
+
+    .profile-role {
+        color: #667eea;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+        padding: 0.5rem 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 12px;
+        display: inline-block;
+    }
+
+    .profile-email {
+        color: #6b7280;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        font-weight: 500;
+    }
+
+    /* Enhanced Profile Stats */
+    .profile-stats {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 2rem;
+        padding: 1.5rem 0;
+        border-top: 1px solid rgba(99, 102, 241, 0.1);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        background: rgba(99, 102, 241, 0.02);
+        border-radius: 12px;
+    }
+
+    .stat-item {
+        text-align: center;
+        transition: all 0.3s ease;
+        padding: 0.5rem;
+        border-radius: 8px;
+    }
+
+    .stat-item:hover {
+        background: rgba(99, 102, 241, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .stat-item h5 {
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        line-height: 1;
+    }
+
+    .stat-item span {
+        color: #6b7280;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    /* Enhanced Form Controls */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        padding: 1rem 1.25rem;
+        background: white;
+        height: 3.5rem;
+    }
+
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .form-floating > label {
+        color: #6b7280;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+    }
+
+    .form-floating > .form-control[readonly] {
+        background-color: #f8fafc;
+        border-color: rgba(99, 102, 241, 0.15);
+    }
+
+    /* Enhanced Buttons */
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+        color: white;
+        box-shadow: 0 8px 25px rgba(237, 137, 54, 0.3);
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(237, 137, 54, 0.5);
+        background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+        color: white;
+    }
+
+    .btn-outline-secondary {
+        border: 2px solid #6b7280;
+        color: #6b7280;
+        border-radius: 16px;
+        font-weight: 600;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .btn-outline-secondary:hover {
+        background: #6b7280;
+        border-color: #6b7280;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+    }
+
+    /* Enhanced Alerts */
+    .alert {
+        border-radius: 16px;
+        border: none;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, rgba(72, 187, 120, 0.1) 0%, rgba(56, 161, 105, 0.1) 100%);
+        color: #38a169;
+        border-left: 4px solid #48bb78;
+    }
+
+    .alert-danger {
+        background: linear-gradient(135deg, rgba(245, 101, 101, 0.1) 0%, rgba(229, 62, 62, 0.1) 100%);
+        color: #e53e3e;
+        border-left: 4px solid #f56565;
+    }
+
+    /* Enhanced Loading States */
+    .spinner-border-sm {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    .spinner-border {
+        color: #667eea;
+    }
+
+    /* Enhanced Small Text */
+    small.text-muted {
+        color: #6b7280 !important;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+
+    /* Enhanced Responsive Design */
+    @@media (max-width: 768px) {
+        .profile-container {
+            padding: 1rem 0.5rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            font-size: 3rem;
+        }
+
+        .profile-name {
+            font-size: 1.5rem;
+        }
+
+        .card-header,
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .profile-stats {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            padding: 1rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            font-size: 2.5rem;
+        }
+
+        .profile-name {
+            font-size: 1.25rem;
+        }
+
+        .card-header h5 {
+            font-size: 1.2rem;
+        }
+    }
+
+    /* Performance Optimizations */
+    .card,
+    .profile-avatar,
+    .btn,
+    .form-control,
+    .stat-item {
+        will-change: transform;
+    }
+
+    /* Reduce motion for users who prefer it */
+    @@media (prefers-reduced-motion: reduce) {
+        .card,
+        .profile-avatar,
+        .btn,
+        .form-control,
+        .stat-item {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool isLoadingProfile = true;
+    private bool isSavingProfile = false;
+    private bool isChangingPassword = false;
+    private int totalCustomers = 0;
+    private UserProfileDto? userProfile;
+    private UpdateUserProfileDto profileModel = new();
+    private ChangePasswordDto passwordModel = new();
+    private string passwordMessage = string.Empty;
+    private string passwordMessageType = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRealTimeProfile();
+        await LoadCustomerStats();
+    }
+
+    private async Task LoadRealTimeProfile()
+    {
+        try
+        {
+            isLoadingProfile = true;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                var claims = authState.User.Claims.ToList();
+                
+                // Get email from multiple possible claim types
+                var email = authState.User.FindFirst("email")?.Value ??
+                           authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value ??
+                           authState.User.Identity.Name ?? "user@example.com";
+                
+                // Get name from claims
+                var fullName = authState.User.FindFirst("name")?.Value ??
+                              authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value ??
+                              authState.User.FindFirst("unique_name")?.Value ?? "User";
+                
+                // Get role
+                var role = authState.User.FindFirst("role")?.Value ??
+                          authState.User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value ??
+                          "User";
+                
+                // Split name into first and last
+                var nameParts = fullName.Split(' ', 2);
+                var firstName = nameParts.Length > 0 ? nameParts[0] : "User";
+                var lastName = nameParts.Length > 1 ? nameParts[1] : "";
+                
+                // Create user profile from real auth data
+                userProfile = new UserProfileDto
+                {
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Email = email,
+                    Role = role,
+                    JoinDate = DateTime.Now.AddMonths(-3),
+                    Bio = $"Welcome {firstName}! Manage your boutique efficiently.",
+                    PhoneNumber = ""
+                };
+                
+                // Initialize form model
+                profileModel = new UpdateUserProfileDto
+                {
+                    FirstName = firstName,
+                    LastName = lastName,
+                    PhoneNumber = "",
+                    Bio = userProfile.Bio
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading real-time profile: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingProfile = false;
+        }
+    }
+
+
+
+    private async Task LoadCustomerStats()
+    {
+        try
+        {
+            var customers = await CustomerService.GetCustomersAsync();
+            totalCustomers = customers?.Count() ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading customer data: {ex.Message}");
+            totalCustomers = 0;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        try
+        {
+            isSavingProfile = true;
+            
+            // Update using ProfileUpdateService for real-time updates across the app
+            await ProfileService.UpdateProfileAsync(profileModel);
+            
+            // Refresh local profile data
+            userProfile = await ProfileService.GetCurrentProfileAsync(forceRefresh: true);
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving profile: {ex.Message}");
+        }
+        finally
+        {
+            isSavingProfile = false;
+        }
+    }
+
+    private void ResetProfile()
+    {
+        if (userProfile != null)
+        {
+            profileModel = new UpdateUserProfileDto
+            {
+                FirstName = userProfile.FirstName,
+                LastName = userProfile.LastName,
+                PhoneNumber = userProfile.PhoneNumber,
+                Bio = userProfile.Bio
+            };
+        }
+    }
+
+    private async Task ChangePassword()
+    {
+        try
+        {
+            isChangingPassword = true;
+            passwordMessage = string.Empty;
+            
+            if (passwordModel.NewPassword != passwordModel.ConfirmPassword)
+            {
+                passwordMessage = "New password and confirm password do not match.";
+                passwordMessageType = "error";
+                return;
+            }
+            
+            await UserService.ChangePasswordAsync(passwordModel);
+            
+            passwordMessage = "Password changed successfully!";
+            passwordMessageType = "success";
+            passwordModel = new ChangePasswordDto();
+        }
+        catch (Exception ex)
+        {
+            passwordMessage = "Error changing password. Please check your current password.";
+            passwordMessageType = "error";
+            Console.WriteLine($"Error changing password: {ex.Message}");
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
+    }
+}

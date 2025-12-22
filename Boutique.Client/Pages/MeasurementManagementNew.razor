@@ -1,0 +1,411 @@
+@page "/measurement-management/{CustomerId:int}"
+@inject NavigationManager Navigation
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.CustomerMeasurementService MeasurementService
+@inject IJSRuntime JSRuntime
+@using Boutique.Client.Models
+@using Microsoft.JSInterop
+
+<div class="measurement-container">
+    <div class="page-header text-center">
+        <h1 class="page-title mb-3">
+            <i class="fas fa-ruler me-3"></i>Measurement Management
+        </h1>
+        <p class="page-subtitle mb-3">Customer: @customerName</p>
+        <button class="btn btn-secondary" @onclick="GoBack">
+            <i class="fas fa-arrow-left me-2"></i>Back to Customers
+        </button>
+    </div>
+
+    <!-- Add Measurement Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add New Measurement</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Gender</label>
+                    <select class="form-select" @bind="newMeasurement.Gender">
+                        <option value="">Select</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Measurement Type</label>
+                    <input type="text" class="form-control" @bind="newMeasurement.MeasurementType" placeholder="e.g., Chest, Waist" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Value</label>
+                    <input type="number" step="0.1" class="form-control" @bind="newMeasurement.MeasurementValue" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Unit</label>
+                    <input type="text" class="form-control" @bind="newMeasurement.Unit" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="AddMeasurement" disabled="@(!IsValidNewMeasurement())">
+                        <i class="fas fa-plus me-2"></i>Add
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-3 mb-0">@errorMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success mt-3 mb-0">@successMessage</div>
+            }
+        </div>
+    </div>
+
+    <!-- Measurements List -->
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Measurements (@measurements.Count)</h5>
+            <button class="btn btn-sm btn-outline-primary" @onclick="LoadMeasurements">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!measurements.Any())
+            {
+                <div class="text-center p-4">
+                    <i class="fas fa-ruler fa-3x text-muted mb-3"></i>
+                    <h5>No measurements found</h5>
+                    <p class="text-muted">Add measurements for this customer to get started</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Gender</th>
+                                <th>Type</th>
+                                <th>Value</th>
+                                <th>Unit</th>
+                                <th>Date Added</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var measurement in measurements)
+                            {
+                                <tr>
+                                    @if (editingId == measurement.MeasurementId)
+                                    {
+                                        <td>
+                                            <select class="form-select form-select-sm" @bind="editMeasurement.Gender">
+                                                <option value="M">Male</option>
+                                                <option value="F">Female</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="editMeasurement.MeasurementType" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.1" class="form-control form-control-sm" @bind="editMeasurement.MeasurementValue" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="editMeasurement.Unit" />
+                                        </td>
+                                        <td>@measurement.CreatedDate.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success me-1" @onclick="SaveEdit">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td>
+                                            <span class="badge bg-@(measurement.Gender == "M" ? "primary" : "danger")">
+                                                @(measurement.Gender == "M" ? "Male" : "Female")
+                                            </span>
+                                        </td>
+                                        <td><strong>@measurement.MeasurementType</strong></td>
+                                        <td>@measurement.MeasurementValue</td>
+                                        <td>@measurement.Unit</td>
+                                        <td>@measurement.CreatedDate.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartEdit(measurement)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteMeasurement(measurement.MeasurementId)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .measurement-container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1.25rem;
+    }
+
+    .card-header h5 {
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+
+    private string customerName = "";
+    private List<CustomerMeasurement> measurements = new();
+    private CustomerMeasurement newMeasurement = new() { Unit = "inches" };
+    private CustomerMeasurement editMeasurement = new();
+    private int editingId = 0;
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomerData();
+        await LoadMeasurements();
+    }
+
+    private async Task LoadCustomerData()
+    {
+        try
+        {
+            var customer = await CustomerService.GetCustomerByIdAsync(CustomerId);
+            customerName = customer?.CustomerName ?? $"Customer #{CustomerId}";
+        }
+        catch
+        {
+            customerName = $"Customer #{CustomerId}";
+        }
+    }
+
+    private async Task LoadMeasurements()
+    {
+        isLoading = true;
+        errorMessage = "";
+        try
+        {
+            measurements = await MeasurementService.GetCustomerMeasurementsAsync(CustomerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading measurements: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool IsValidNewMeasurement()
+    {
+        return !string.IsNullOrWhiteSpace(newMeasurement.Gender) &&
+               !string.IsNullOrWhiteSpace(newMeasurement.MeasurementType) &&
+               newMeasurement.MeasurementValue > 0;
+    }
+
+    private async Task AddMeasurement()
+    {
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            newMeasurement.CustomerId = CustomerId;
+            newMeasurement.CreatedDate = DateTime.UtcNow;
+
+            Console.WriteLine($"Attempting to save: CustomerId={CustomerId}, Gender={newMeasurement.Gender}, Type={newMeasurement.MeasurementType}, Value={newMeasurement.MeasurementValue}");
+
+            var success = await MeasurementService.CreateMeasurementAsync(newMeasurement);
+
+            Console.WriteLine($"Save result: {success}");
+
+            if (success)
+            {
+                successMessage = "Measurement added successfully!";
+                newMeasurement = new CustomerMeasurement { Unit = "inches" };
+                await LoadMeasurements();
+                StateHasChanged();
+                
+                // Clear success message after 3 seconds
+                await Task.Delay(3000);
+                successMessage = "";
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to add measurement. Please check the API connection.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding measurement: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void StartEdit(CustomerMeasurement measurement)
+    {
+        editingId = measurement.MeasurementId;
+        editMeasurement = new CustomerMeasurement
+        {
+            MeasurementId = measurement.MeasurementId,
+            CustomerId = measurement.CustomerId,
+            Gender = measurement.Gender,
+            MeasurementType = measurement.MeasurementType,
+            MeasurementValue = measurement.MeasurementValue,
+            Unit = measurement.Unit,
+            CreatedDate = measurement.CreatedDate
+        };
+    }
+
+    private async Task SaveEdit()
+    {
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var success = await MeasurementService.UpdateMeasurementAsync(editingId, editMeasurement);
+
+            if (success)
+            {
+                successMessage = "Measurement updated successfully!";
+                editingId = 0;
+                await LoadMeasurements();
+                
+                await Task.Delay(3000);
+                successMessage = "";
+            }
+            else
+            {
+                errorMessage = "Failed to update measurement.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void CancelEdit()
+    {
+        editingId = 0;
+        editMeasurement = new CustomerMeasurement();
+    }
+
+    private async Task DeleteMeasurement(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this measurement?"))
+            return;
+
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var success = await MeasurementService.DeleteMeasurementAsync(id);
+
+            if (success)
+            {
+                successMessage = "Measurement deleted successfully!";
+                await LoadMeasurements();
+                
+                await Task.Delay(3000);
+                successMessage = "";
+            }
+            else
+            {
+                errorMessage = "Failed to delete measurement.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/customer-management");
+    }
+}

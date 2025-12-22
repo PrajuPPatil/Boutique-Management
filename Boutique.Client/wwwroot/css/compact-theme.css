@@ -1,0 +1,306 @@
+/* ===================================
+   Boutique Client - Compact Professional Theme
+   =================================== */
+
+/* Global Compact Overrides */
+.container-fluid {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Compact Typography */
+h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
+h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+h4 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+h5 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+p { font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.75rem; }
+
+/* Compact Spacing */
+.mb-1 { margin-bottom: 0.25rem !important; }
+.mb-2 { margin-bottom: 0.5rem !important; }
+.mb-3 { margin-bottom: 0.75rem !important; }
+.mb-4 { margin-bottom: 1rem !important; }
+.mb-5 { margin-bottom: 1.5rem !important; }
+
+.mt-1 { margin-top: 0.25rem !important; }
+.mt-2 { margin-top: 0.5rem !important; }
+.mt-3 { margin-top: 0.75rem !important; }
+.mt-4 { margin-top: 1rem !important; }
+.mt-5 { margin-top: 1.5rem !important; }
+
+.p-1 { padding: 0.25rem !important; }
+.p-2 { padding: 0.5rem !important; }
+.p-3 { padding: 0.75rem !important; }
+.p-4 { padding: 1rem !important; }
+.p-5 { padding: 1.5rem !important; }
+
+/* Compact Cards */
+.card {
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    margin-bottom: 1rem;
+}
+
+.card-header {
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.card-body {
+    padding: 1rem !important;
+}
+
+.card-footer {
+    padding: 0.75rem 1rem !important;
+}
+
+/* Compact Buttons */
+.btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8rem !important;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+}
+
+/* Compact Forms */
+.form-control {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+}
+
+.form-select {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+}
+
+.form-label {
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    margin-bottom: 0.25rem !important;
+}
+
+/* Compact Tables */
+.table {
+    font-size: 0.85rem !important;
+}
+
+.table th {
+    padding: 0.5rem !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+}
+
+.table td {
+    padding: 0.5rem !important;
+}
+
+/* Compact Modals */
+.modal-header {
+    padding: 0.75rem 1rem !important;
+}
+
+.modal-body {
+    padding: 1rem !important;
+}
+
+.modal-footer {
+    padding: 0.75rem 1rem !important;
+}
+
+.modal-title {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+/* Compact Navigation */
+.nav-link {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+}
+
+.navbar-nav .nav-link {
+    padding: 0.5rem 1rem !important;
+}
+
+/* Compact Alerts */
+.alert {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+}
+
+/* Compact Badges */
+.badge {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+/* Compact List Groups */
+.list-group-item {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Compact Dropdowns */
+.dropdown-item {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.9rem !important;
+}
+
+.dropdown-header {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8rem !important;
+}
+
+/* Compact Progress Bars */
+.progress {
+    height: 0.75rem !important;
+}
+
+/* Compact Breadcrumbs */
+.breadcrumb {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+}
+
+/* Compact Pagination */
+.page-link {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.85rem !important;
+}
+
+/* Responsive Compact Adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0 0.75rem;
+    }
+    
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1.1rem; }
+    
+    .card-header {
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .btn {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding: 0 0.5rem;
+    }
+    
+    h1 { font-size: 1.25rem; }
+    h2 { font-size: 1.1rem; }
+    h3 { font-size: 1rem; }
+    
+    .card-header {
+        padding: 0.5rem !important;
+    }
+    
+    .card-body {
+        padding: 0.5rem !important;
+    }
+    
+    .btn {
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+}
+
+/* Utility Classes for Compact Design */
+.compact-spacing > * {
+    margin-bottom: 0.5rem !important;
+}
+
+.compact-spacing > *:last-child {
+    margin-bottom: 0 !important;
+}
+
+.compact-padding {
+    padding: 0.5rem !important;
+}
+
+.compact-margin {
+    margin: 0.5rem !important;
+}
+
+.text-compact {
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+}
+
+.icon-compact {
+    font-size: 1rem !important;
+}
+
+/* Professional Color Adjustments */
+.text-muted {
+    color: #6c757d !important;
+    font-size: 0.85rem !important;
+}
+
+.text-primary {
+    color: #667eea !important;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+/* Compact Grid Adjustments */
+.row {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+}
+
+.row > * {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* Performance Optimizations */
+* {
+    box-sizing: border-box;
+}
+
+.card,
+.btn,
+.form-control,
+.modal-content {
+    will-change: transform;
+}
+
+/* Smooth Transitions */
+.card,
+.btn,
+.form-control,
+.nav-link,
+.dropdown-item {
+    transition: all 0.2s ease-in-out;
+}

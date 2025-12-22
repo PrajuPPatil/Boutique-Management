@@ -1,0 +1,34 @@
+@* Empty Layout Component - Minimal layout for login and public pages *@
+@* Used for pages that don't need navigation (login, register, etc.) *@
+@inherits LayoutComponentBase
+
+<div class="empty-layout-container">
+    @* Main content area without navigation *@
+    <main class="empty-main-content">
+        @Body
+    </main>
+    @* Footer component for branding and links *@
+    <Boutique.Client.Components.FooterComponent />
+</div>
+
+<style>
+    /* Container for empty layout with full viewport height */
+    .empty-layout-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Main content area that takes available space */
+    .empty-main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Ensure footer sticks to bottom of viewport */
+    .site-footer {
+        margin-top: auto;
+        width: 100%;
+    }
+</style>

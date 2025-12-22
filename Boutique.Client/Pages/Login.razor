@@ -1,0 +1,370 @@
+@* Login Page - User authentication with professional design *@
+@* Features: JWT authentication, email verification, password reset *@
+@page "/login"
+@inject Boutique.Client.Services.AuthService AuthService
+@inject Boutique.Client.Services.CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@layout EmptyLayout
+
+<div class="login-container">
+    <div class="container-fluid">
+        <div class="row min-vh-100">
+            @* Left Side - Branding section with feature highlights *@
+            <div class="col-lg-6 d-none d-lg-flex login-brand-section">
+                <div class="d-flex flex-column justify-content-center align-items-center text-white w-100">
+                    <div class="brand-content text-center">
+                        @* Brand logo and title *@
+                        <i class="fas fa-cut brand-icon mb-4"></i>
+                        <h1 class="brand-title mb-3">Boutique Manager</h1>
+                        <p class="brand-subtitle mb-4">Your Premium Fashion Management Solution</p>
+                        @* Feature highlights for marketing *@
+                        <div class="feature-list">
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-users me-3"></i>
+                                <span>Customer Management</span>
+                            </div>
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-ruler me-3"></i>
+                                <span>Measurement Tracking</span>
+                            </div>
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-credit-card me-3"></i>
+                                <span>Payment Processing</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side - Login Form -->
+            <div class="col-lg-6 col-12 d-flex align-items-center justify-content-center login-form-section">
+                <div class="login-form-container">
+                    <div class="text-center mb-5">
+                        <div class="d-lg-none mb-4">
+                            <i class="fas fa-cut text-primary" style="font-size: 3rem;"></i>
+                        </div>
+                        <h2 class="login-title mb-2">Welcome Back</h2>
+                        <p class="login-subtitle text-muted">Sign in to your account to continue</p>
+                    </div>
+
+                    @* Login form with validation and error handling *@
+                    <EditForm Model="loginModel" OnValidSubmit="HandleLogin" class="login-form">
+                        <DataAnnotationsValidator />
+                        
+                        @* Success message display (e.g., after email verification) *@
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                @successMessage
+                                <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                            </div>
+                        }
+
+                        @* Error message display for login failures *@
+                        @if (!string.IsNullOrEmpty(loginError))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                @loginError
+                                <button type="button" class="btn-close" @onclick="() => loginError = string.Empty"></button>
+                            </div>
+                        }
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="loginModel.Email" class="form-control" id="email" placeholder="name@example.com" />
+                            <label for="email"><i class="fas fa-envelope me-2"></i>Email Address</label>
+                            <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small mt-1" />
+                        </div>
+
+                        <div class="form-floating mb-4">
+                            <InputText type="password" @bind-Value="loginModel.Password" class="form-control" id="password" placeholder="Password" />
+                            <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
+                            <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1" />
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rememberMe">
+                                <label class="form-check-label text-muted" for="rememberMe">
+                                    Remember me
+                                </label>
+                            </div>
+                            <NavLink href="/forgot-password" class="text-decoration-none small">Forgot Password?</NavLink>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mb-4 login-btn" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Signing In...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                <span>Sign In</span>
+                            }
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-muted mb-0">Don't have an account? 
+                                <NavLink href="register" class="text-decoration-none fw-semibold">Create Account</NavLink>
+                            </p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        min-height: calc(100vh - 200px);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+    }
+
+    .login-brand-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-brand-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+        opacity: 0.1;
+    }
+
+    .brand-content {
+        position: relative;
+        z-index: 1;
+        max-width: 400px;
+    }
+
+    .brand-icon {
+        font-size: 4rem;
+        color: #ffffff;
+        text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .brand-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 1rem;
+    }
+
+    .brand-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        font-weight: 300;
+    }
+
+    .feature-item {
+        font-size: 1rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+    }
+
+    .feature-item i {
+        width: 20px;
+        text-align: center;
+    }
+
+    .login-form-section {
+        background: #ffffff;
+        padding: 2rem;
+    }
+
+    .login-form-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+    }
+
+    .login-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    .login-subtitle {
+        font-size: 1rem;
+        color: #718096;
+    }
+
+    .form-floating > .form-control {
+        height: 3.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-floating > .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-floating > label {
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .login-btn {
+        height: 3.5rem;
+        border-radius: 0.75rem;
+        font-weight: 600;
+        font-size: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .login-btn:active {
+        transform: translateY(0);
+    }
+
+    .alert {
+        border-radius: 0.75rem;
+        border: none;
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    .text-primary {
+        color: #667eea !important;
+    }
+
+    @@media (max-width: 991.98px) {
+        .login-container {
+            background: #ffffff;
+            min-height: calc(100vh - 150px);
+        }
+        
+        .login-form-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .login-form-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1rem;
+            color: #2d3748;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .row.min-vh-100 {
+            min-height: auto;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .login-container {
+            min-height: calc(100vh - 120px);
+            padding: 1rem 0;
+        }
+        
+        .login-form-container {
+            padding: 1.5rem;
+            margin: 1rem;
+        }
+        
+        .brand-title {
+            font-size: 2rem;
+        }
+        
+        .login-title {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+
+@code {
+    // Login form model for data binding
+    private LoginDTO loginModel = new();
+    // Error message for login failures
+    private string loginError = string.Empty;
+    // Success message for successful operations (e.g., email verification)
+    private string successMessage = string.Empty;
+    // Loading state for login button
+    private bool isLoading = false;
+
+    // Initialize component and check for email verification success
+    protected override void OnInitialized()
+    {
+        // Check URL parameters for email verification success
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("verified", out var verified) && verified == "true")
+        {
+            successMessage = "Email verified successfully! You can now sign in.";
+        }
+    }
+
+    // Handle login form submission with comprehensive error handling
+    private async Task HandleLogin()
+    {
+        // Prevent multiple simultaneous login attempts
+        if (isLoading) return;
+        
+        // Set loading state and clear previous errors
+        isLoading = true;
+        loginError = string.Empty;
+        
+        try
+        {
+            // Attempt login via authentication service
+            var loginResponse = await AuthService.LoginAsync(loginModel);
+            if (!string.IsNullOrEmpty(loginResponse?.Token))
+            {
+                // Store JWT token and update authentication state
+                await AuthStateProvider.MarkUserAsAuthenticated(loginResponse.Token);
+                // Navigate to dashboard on successful login
+                Navigation.NavigateTo("/dashboard", true);
+            }
+            else
+            {
+                // Handle invalid credentials
+                loginError = "Invalid email or password. Please try again.";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            // Extract detailed error message from the exception
+            loginError = ex.Message;
+        }
+        catch (TaskCanceledException)
+        {
+            loginError = "Request timed out. Please check your internet connection and try again.";
+        }
+        catch (Exception ex)
+        {
+            // Handle unexpected errors
+            loginError = "An unexpected error occurred. Please try again later.";
+            Console.WriteLine($"Login error: {ex.Message}");
+        }
+        finally
+        {
+            // Reset loading state
+            isLoading = false;
+        }
+    }
+}

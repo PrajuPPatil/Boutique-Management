@@ -1,0 +1,799 @@
+@* Main Layout Component - Primary layout for authenticated users with navigation and theming *@
+@* Features: Top navigation, user profile, theme toggle, responsive design, dark mode *@
+@inherits LayoutComponentBase
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@using Boutique.Client.Services
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Components
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject ThemeService ThemeService
+
+<link href="css/compact-theme.css" rel="stylesheet" />
+
+@* Main app container with theme-aware styling *@
+<div class="app-container @(isDarkMode ? "dark-theme" : "light-theme")">
+    <AuthorizeView>
+        <Authorized>
+            @* Top Navigation Bar with brand, menu, search, and user profile *@
+            <nav class="top-navbar">
+                <div class="navbar-container">
+                    @* Brand Section with logo and company name *@
+                    <div class="navbar-brand">
+                        <i class="fas fa-cut brand-icon"></i>
+                        <div class="brand-text-container">
+                            <span class="brand-name">AUSWS</span>
+                            <span class="brand-subtitle">Boutique</span>
+                        </div>
+                    </div>
+                    
+                    @* Main Navigation Menu with responsive mobile toggle *@
+                    <div class="navbar-menu @(menuOpen ? "show" : "")">
+                        <NavLink href="dashboard" class="nav-link">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </NavLink>
+                        <NavLink href="customer-management" class="nav-link">
+                            <i class="fas fa-users me-2"></i>Customers
+                        </NavLink>
+                        <NavLink href="orders" class="nav-link">
+                            <i class="fas fa-shopping-cart me-2"></i>Orders
+                        </NavLink>
+                        
+                        @* Management Dropdown with sub-navigation items *@
+                        <div class="dropdown nav-dropdown">
+                            <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cogs me-2"></i>Management
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><NavLink class="dropdown-item" href="measurement-management">
+                                    <i class="fas fa-ruler me-2"></i>Measurements
+                                </NavLink></li>
+                                <li><NavLink class="dropdown-item" href="payment-management">
+                                    <i class="fas fa-credit-card me-2"></i>Payments
+                                </NavLink></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><NavLink class="dropdown-item" href="analytics">
+                                    <i class="fas fa-chart-bar me-2"></i>Analytics
+                                </NavLink></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    @* Global Search Component *@
+                    <div class="navbar-search">
+                        <GlobalSearch />
+                    </div>
+                    
+                    @* Right Side Actions: Theme toggle, user profile, mobile menu *@
+                    <div class="navbar-right">
+                        <button class="btn theme-toggle-btn" @onclick="ToggleTheme" title="Toggle Theme">
+                            <i class="fas @(isDarkMode ? "fa-sun" : "fa-moon")"></i>
+                        </button>
+                        
+                        <div class="dropdown">
+                            <button class="btn user-profile-btn" type="button" data-bs-toggle="dropdown" title="@(currentUser?.FullName ?? "User Profile")">
+                                <div class="user-avatar-nav">
+                                    @(currentUser?.InitialLetter ?? "U")
+                                </div>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end user-dropdown">
+                                <li class="dropdown-header">
+                                    <div class="user-profile-header">
+                                        <div class="user-avatar-large">
+                                            @(currentUser?.InitialLetter ?? "U")
+                                        </div>
+                                        <div class="user-details">
+                                            <div class="user-name-large">@(currentUser?.FullName ?? "User")</div>
+                                            <div class="user-email">@(currentUser?.Role ?? "User")</div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><NavLink class="dropdown-item" href="profile"><i class="fas fa-user me-2"></i>My Profile</NavLink></li>
+                                <li><NavLink class="dropdown-item" href="settings"><i class="fas fa-cog me-2"></i>Settings</NavLink></li>
+                                <li><NavLink class="dropdown-item" href="notifications"><i class="fas fa-bell me-2"></i>Notifications</NavLink></li>
+                                <li><NavLink class="dropdown-item" href="help"><i class="fas fa-question-circle me-2"></i>Help & Support</NavLink></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item text-danger" @onclick="Logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</button></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Mobile Menu Toggle -->
+                        <button class="btn mobile-menu-toggle d-lg-none" @onclick="ToggleMenu">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                @Body
+            </main>
+        </Authorized>
+        <NotAuthorized>
+            <!-- Login Layout -->
+            <div class="login-layout">
+                @Body
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+    
+    <!-- Toast Notifications -->
+    <ToastContainer />
+    
+    <!-- Footer -->
+    <Boutique.Client.Components.FooterComponent />
+</div>
+
+<style>
+    .app-container {
+        min-height: 100vh;
+        background-color: #f8fafc;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    body {
+        overflow-x: hidden;
+        margin: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Professional Top Navbar */
+    .top-navbar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .navbar-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        gap: 2rem;
+    }
+
+    /* Brand Section */
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 700;
+        text-decoration: none;
+        flex-shrink: 0;
+        margin-left: 2rem;
+    }
+
+    .brand-icon {
+        font-size: 1.4rem;
+        margin-right: 0.875rem;
+        padding: 0.625rem;
+        background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+        border-radius: 12px;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .brand-text-container {
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+    }
+
+    .brand-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: white;
+        letter-spacing: -0.025em;
+    }
+
+    .brand-subtitle {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: rgba(255,255,255,0.8);
+        margin-top: -2px;
+    }
+
+    /* Navigation Menu */
+    .navbar-menu {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .nav-link {
+        color: rgba(255,255,255,0.9);
+        text-decoration: none;
+        padding: 0.625rem 1rem;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        backdrop-filter: blur(10px);
+        position: relative;
+        border: 1px solid transparent;
+    }
+
+    .nav-link:hover {
+        background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        border-color: rgba(255,255,255,0.3);
+    }
+
+    .nav-link.active {
+        background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.4);
+    }
+
+    .nav-dropdown {
+        position: relative;
+    }
+
+    .nav-dropdown .dropdown-toggle {
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .nav-dropdown .dropdown-menu {
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        margin-top: 0.5rem;
+    }
+
+    .nav-dropdown .dropdown-item {
+        color: #1f2937;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+        border-radius: 8px;
+        margin: 0.25rem;
+    }
+
+    .nav-dropdown .dropdown-item:hover {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateX(4px);
+    }
+
+    /* Search Section */
+    .navbar-search {
+        flex: 1;
+        max-width: 320px;
+        margin: 0 1rem;
+        min-width: 200px;
+    }
+
+    /* Right Side Actions */
+    .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-shrink: 0;
+        min-width: 120px;
+        margin-right: 1rem;
+    }
+
+    .theme-toggle-btn {
+        background: linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+        border: 1px solid rgba(255,255,255,0.25);
+        color: white;
+        padding: 0.625rem;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(15px);
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .theme-toggle-btn:hover {
+        background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        border-color: rgba(255,255,255,0.4);
+    }
+
+    .user-profile-btn {
+        background: linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(15px);
+        width: 42px;
+        height: 42px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .user-avatar-nav {
+        width: 32px;
+        height: 32px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        backdrop-filter: blur(10px);
+    }
+
+    .user-profile-btn:hover {
+        background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.4);
+    }
+
+    .profile-name-small {
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1;
+        color: white;
+    }
+
+    .profile-role-small {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.8);
+        line-height: 1;
+        margin-top: 1px;
+    }
+
+    .mobile-menu-toggle {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        padding: 0.625rem;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+    }
+
+    .login-layout {
+        width: 100%;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1e40af 0%, #3730a3 50%, #7c3aed 100%);
+    }
+
+    /* User Dropdown */
+    .user-dropdown {
+        min-width: 300px;
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.1);
+        padding: 0;
+        margin-top: 0.75rem;
+        backdrop-filter: blur(20px);
+        overflow: hidden;
+    }
+
+    .user-profile-header {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .user-avatar-large {
+        width: 60px;
+        height: 60px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-right: 1rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .user-name-large {
+        font-weight: 700;
+        font-size: 1.125rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.2;
+    }
+
+    .user-email {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        line-height: 1.2;
+    }
+
+    .dropdown-item {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border-radius: 0;
+    }
+
+    .dropdown-item:hover {
+        background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
+        transform: translateX(4px);
+    }
+
+    .dropdown-item.text-danger:hover {
+        background: linear-gradient(90deg, #fed7d7 0%, #feb2b2 100%);
+        color: #e53e3e;
+    }
+
+    .dropdown-item {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background: #f8fafc;
+        transform: translateX(5px);
+    }
+
+    .dropdown-item.text-danger:hover {
+        background: #fed7d7;
+        color: #e53e3e;
+    }
+
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        padding: 2rem;
+        background-color: #f8fafc;
+        min-height: calc(100vh - 80px);
+    }
+
+    .login-layout {
+        width: 100%;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1e40af 0%, #3730a3 50%, #7c3aed 100%);
+    }
+
+    /* Dark Theme Styles */
+    .dark-theme {
+        background-color: #0f172a !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dark-theme .top-navbar {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%) !important;
+        border-bottom-color: rgba(148, 163, 184, 0.1) !important;
+    }
+
+    .dark-theme .nav-link {
+        color: rgba(226, 232, 240, 0.9) !important;
+    }
+
+    .dark-theme .nav-link:hover {
+        background: rgba(148, 163, 184, 0.15) !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dark-theme .nav-link.active {
+        background: rgba(148, 163, 184, 0.2) !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dark-theme .theme-toggle-btn,
+    .dark-theme .user-profile-btn,
+    .dark-theme .mobile-menu-toggle {
+        background: rgba(148, 163, 184, 0.1) !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dark-theme .theme-toggle-btn:hover,
+    .dark-theme .user-profile-btn:hover,
+    .dark-theme .mobile-menu-toggle:hover {
+        background: rgba(148, 163, 184, 0.2) !important;
+        color: white !important;
+    }
+
+    .dark-theme .user-profile-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%) !important;
+    }
+
+    .dark-theme .main-content {
+        background-color: #0f172a !important;
+    }
+
+    .dark-theme .main-content {
+        background-color: #1a1a1a !important;
+    }
+
+    .dark-theme .card {
+        background-color: #2d3748 !important;
+        border-color: #4a5568 !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .card-header {
+        background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%) !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .stats-card {
+        background-color: #2d3748 !important;
+        border-color: #4a5568 !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .page-title {
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .page-subtitle {
+        color: #a0aec0 !important;
+    }
+
+    .dark-theme .stats-number {
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .stats-label {
+        color: #a0aec0 !important;
+    }
+
+    .dark-theme .table {
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .table th {
+        background: #2d3748 !important;
+        color: #e5e5e5 !important;
+        border-color: #4a5568 !important;
+    }
+
+    .dark-theme .table td {
+        border-color: #4a5568 !important;
+    }
+
+    .dark-theme .form-control {
+        background-color: #2d3748 !important;
+        border-color: #4a5568 !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .form-select {
+        background-color: #2d3748 !important;
+        border-color: #4a5568 !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .modal-content {
+        background-color: #2d3748 !important;
+        color: #e5e5e5 !important;
+    }
+
+    .dark-theme .modal-header {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+    }
+
+    .dark-theme .modal-footer {
+        background-color: #2d3748 !important;
+        border-color: #4a5568 !important;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 1199.98px) {
+        .navbar-search {
+            max-width: 300px;
+            min-width: 200px;
+        }
+        
+        .nav-link {
+            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+        }
+    }
+
+    @@media (max-width: 991.98px) {
+        .navbar-container {
+            padding: 0.75rem 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .navbar-search {
+            order: 3;
+            flex-basis: 100%;
+            margin: 0.75rem 0 0 0;
+            max-width: none;
+            min-width: auto;
+        }
+
+        .navbar-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            flex-direction: column;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            transform: translateY(-100%);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1001;
+            backdrop-filter: blur(20px);
+        }
+
+        .navbar-menu.show {
+            transform: translateY(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .nav-link {
+            width: 100%;
+            justify-content: flex-start;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+            padding: 0.75rem 1rem;
+        }
+    }
+
+    @@media (max-width: 767.98px) {
+        .navbar-brand .brand-text {
+            font-size: 1.1rem;
+        }
+        
+        .brand-icon {
+            font-size: 1.3rem;
+        }
+        
+        .navbar-search {
+            max-width: 280px;
+        }
+        
+        .user-profile-btn {
+            padding: 0.5rem 0.75rem;
+        }
+        
+        .user-avatar-nav {
+            width: 28px;
+            height: 28px;
+            font-size: 0.8rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .navbar-container {
+            padding: 0.5rem 1rem;
+        }
+        
+        .navbar-search {
+            margin: 0.5rem 0 0 0;
+        }
+        
+        .navbar-right {
+            gap: 0.5rem;
+        }
+        
+        .theme-toggle-btn {
+            padding: 0.5rem;
+        }
+        
+        .user-profile-btn {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .main-content {
+            padding: 1rem;
+        }
+    }
+</style>
+
+@code {
+    // State variables for layout functionality
+    private bool menuOpen = false;              // Mobile menu toggle state
+    private UserProfileDto? currentUser;        // Current authenticated user profile
+    private bool isDarkMode = false;            // Current theme state
+
+    // Initialize layout components and load user data
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize theme service and load saved preference
+        await ThemeService.InitializeAsync();
+        isDarkMode = ThemeService.IsDarkMode;
+        // Subscribe to theme change events
+        ThemeService.OnThemeChanged += OnThemeChanged;
+        // Load current user profile for display
+        await LoadUserProfile();
+    }
+
+    // Handle theme change events and update UI
+    private void OnThemeChanged()
+    {
+        isDarkMode = ThemeService.IsDarkMode;
+        StateHasChanged();
+    }
+
+    // Toggle between light and dark themes
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleThemeAsync();
+    }
+
+    // Toggle mobile navigation menu visibility
+    private void ToggleMenu()
+    {
+        menuOpen = !menuOpen;
+    }
+
+    // Handle profile loaded event and update UI
+    private void OnProfileLoaded(UserProfileDto user)
+    {
+        currentUser = user;
+        StateHasChanged();
+    }
+
+    // Load current user profile from authentication state
+    private async Task LoadUserProfile()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var username = authState.User.Identity.Name;
+            if (!string.IsNullOrEmpty(username))
+            {
+                // Create basic user profile from authentication claims
+                currentUser = new UserProfileDto
+                {
+                    FirstName = username,
+                    Role = "User"
+                };
+                StateHasChanged();
+            }
+        }
+    }
+
+    // Handle user logout and redirect to login page
+    private async Task Logout()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
+    }
+}

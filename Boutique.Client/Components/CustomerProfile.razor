@@ -1,0 +1,555 @@
+@page "/customer-profile/{CustomerId:int}"
+@using Boutique.Client.Services
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Models
+@using Boutique.Client.Components
+@inject CustomerService CustomerService
+@inject OrderService OrderService
+@inject MeasurementService MeasurementService
+@inject PaymentService PaymentService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid">
+    @if (customer != null)
+    {
+        <!-- Customer Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h3 class="mb-1">@customer.CustomerName</h3>
+                                <p class="text-muted mb-0">@customer.Email | @customer.PhoneNo</p>
+                            </div>
+                            <div>
+                                <button class="btn btn-primary me-2" @onclick="ShowCreateOrderModal">
+                                    <i class="fas fa-plus"></i> New Order
+                                </button>
+                                <button class="btn btn-success me-2" @onclick="TakeMeasurements">
+                                    <i class="fas fa-ruler"></i> Measurements
+                                </button>
+                                <button class="btn btn-warning" @onclick="RecordPayment">
+                                    <i class="fas fa-credit-card"></i> Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="text-primary">@totalOrders</h5>
+                        <small class="text-muted">Total Orders</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="text-success">₹@paidAmount.ToString("N0")</h5>
+                        <small class="text-muted">Paid Amount</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="text-warning">₹@pendingBalance.ToString("N0")</h5>
+                        <small class="text-muted">Pending Balance</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="text-info">@measurements.Count</h5>
+                        <small class="text-muted">Measurements</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <select class="form-select" @bind="filterActiveOnly" @bind:after="ApplyFilters">
+                    <option value="false">All Orders</option>
+                    <option value="true">Active Orders Only</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="filterGarmentType" @bind:after="ApplyFilters">
+                    <option value="">All Garment Types</option>
+                    @foreach (var type in garmentTypes)
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" @bind="filterStartDate" @bind:after="ApplyFilters" />
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" @bind="filterEndDate" @bind:after="ApplyFilters" />
+            </div>
+        </div>
+
+        <!-- Orders and Measurements Tabs -->
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link @(activeTab == "orders" ? "active" : "")" @onclick="@(() => SetActiveTab("orders"))">
+                            Orders (@filteredOrders.Count)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(activeTab == "measurements" ? "active" : "")" @onclick="@(() => SetActiveTab("measurements"))">
+                            Measurement History (@measurements.Count)
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-3">
+                    <!-- Orders Tab -->
+                    @if (activeTab == "orders")
+                    {
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Order ID</th>
+                                                <th>Type</th>
+                                                <th>Status</th>
+                                                <th>Priority</th>
+                                                <th>Order Date</th>
+                                                <th>Amount</th>
+                                                <th>Balance</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var order in paginatedOrders.Items)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">@order.OrderId</span>
+                                                            <button class="btn btn-sm btn-outline-info" @onclick="() => ShowOrderTimeline(order.OrderId)" title="View Timeline">
+                                                                <i class="fas fa-history"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td>@order.TypeName</td>
+                                                    <td><span class="badge @GetStatusBadgeClass(order.Status)">@order.Status</span></td>
+                                                    <td><span class="badge @GetPriorityBadgeClass(order.Priority)">@order.Priority</span></td>
+                                                    <td>@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>₹@order.TotalAmount</td>
+                                                    <td>₹@order.RemainingAmount</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @if (paginatedOrders.TotalItems > 0)
+                                {
+                                    <div class="mt-3">
+                                        <PaginationComponent CurrentPage="currentOrderPage" 
+                                                           TotalItems="paginatedOrders.TotalItems" 
+                                                           PageSize="orderPageSize" 
+                                                           OnPageChange="OnOrderPageChanged" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Measurements Tab -->
+                    @if (activeTab == "measurements")
+                    {
+                        <div class="card">
+                            <div class="card-body">
+                                @foreach (var typeGroup in measurements.GroupBy(m => m.TypeName))
+                                {
+                                    <div class="mb-4">
+                                        <h5 class="text-primary">@typeGroup.Key</h5>
+                                        <div class="timeline">
+                                            @foreach (var measurement in typeGroup.OrderByDescending(m => m.EntryDate))
+                                            {
+                                                <div class="timeline-item">
+                                                    <div class="timeline-marker"></div>
+                                                    <div class="timeline-content">
+                                                        <div class="d-flex justify-content-between">
+                                                            <strong>Measurement ID: @measurement.MeasurementId</strong>
+                                                            <small class="text-muted">@measurement.EntryDate.ToString("dd/MM/yyyy")</small>
+                                                        </div>
+                                                        <p class="mb-1">Fabric: @measurement.FabricColor</p>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center">
+            <div class="spinner-border" role="status"></div>
+            <p>Loading customer profile...</p>
+        </div>
+    }
+</div>
+
+<!-- Create Order Modal -->
+@if (showCreateOrderModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>Create New Order
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreateOrderModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="createOrderModel" OnValidSubmit="CreateOrder">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputSelect @bind-Value="createOrderModel.MeasurementId" class="form-select">
+                                        <option value="">Select Measurement</option>
+                                        @foreach (var measurement in measurements)
+                                        {
+                                            <option value="@measurement.MeasurementId">@measurement.TypeName - @measurement.EntryDate.ToString("dd/MM/yyyy")</option>
+                                        }
+                                    </InputSelect>
+                                    <label>Measurement</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputSelect @bind-Value="createOrderModel.Priority" class="form-select">
+                                        <option value="Regular">Regular (14 days)</option>
+                                        <option value="Urgent">Urgent (7 days)</option>
+                                        <option value="Express">Express (3 days)</option>
+                                    </InputSelect>
+                                    <label>Priority</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-floating">
+                                <InputNumber @bind-Value="createOrderModel.TotalAmount" class="form-control" step="0.01" />
+                                <label>Total Amount</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <InputTextArea @bind-Value="createOrderModel.Notes" class="form-control" rows="3" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseCreateOrderModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isCreatingOrder">
+                                @if (isCreatingOrder)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Order
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Order Timeline Modal -->
+@if (showTimelineModal && orderTimeline != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-history me-2"></i>Order Timeline - #@orderTimeline.OrderId
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseTimelineModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="timeline">
+                        @foreach (var status in orderTimeline.StatusHistory.OrderBy(s => s.ChangedDate))
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@status.Status</strong>
+                                        <small class="text-muted">@status.ChangedDate.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(status.Notes))
+                                    {
+                                        <p class="mb-1">@status.Notes</p>
+                                    }
+                                    <small class="text-muted">Changed by: @status.ChangedBy</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTimelineModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: -23px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #007bff;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #dee2e6;
+    }
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #007bff;
+    }
+</style>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+    
+    private CustomerDto? customer;
+    private List<OrderDto> orders = new();
+    private List<OrderDto> filteredOrders = new();
+    private PaginationModel<OrderDto> paginatedOrders = new();
+    private List<MeasurementDto> measurements = new();
+    private CreateOrderDto createOrderModel = new();
+    private OrderTimelineDto? orderTimeline = null;
+    private List<string> garmentTypes = new();
+    
+    private int totalOrders = 0;
+    private decimal paidAmount = 0;
+    private decimal pendingBalance = 0;
+    
+    private string activeTab = "orders";
+    private bool filterActiveOnly = false;
+    private string filterGarmentType = "";
+    private DateTime? filterStartDate;
+    private DateTime? filterEndDate;
+    private bool showCreateOrderModal = false;
+    private bool showTimelineModal = false;
+    private bool isCreatingOrder = false;
+    private int currentOrderPage = 1;
+    private int orderPageSize = 5;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomerData();
+    }
+
+    private async Task LoadCustomerData()
+    {
+        try
+        {
+            var customers = await CustomerService.GetCustomersAsync();
+            customer = customers?.FirstOrDefault(c => c.CustomerId == CustomerId);
+            
+            if (customer != null)
+            {
+                await LoadOrders();
+                await LoadMeasurements();
+                await LoadPaymentSummary();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading customer data: {ex.Message}");
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        var allOrders = await OrderService.GetAllOrdersAsync();
+        orders = allOrders.Where(o => o.CustomerId == CustomerId).ToList();
+        ApplyFilters();
+    }
+
+    private async Task LoadMeasurements()
+    {
+        measurements = await MeasurementService.GetMeasurementsByCustomerAsync(CustomerId);
+        garmentTypes = measurements.Select(m => m.TypeName).Distinct().Where(t => !string.IsNullOrEmpty(t)).ToList()!;
+    }
+
+    private async Task LoadPaymentSummary()
+    {
+        var summary = await PaymentService.GetPaymentSummaryAsync(CustomerId);
+        if (summary != null)
+        {
+            totalOrders = summary.TotalOrders;
+            paidAmount = summary.PaidAmount;
+            pendingBalance = summary.PendingBalance;
+        }
+        else
+        {
+            // Fallback to order calculation
+            totalOrders = orders.Count;
+            paidAmount = orders.Sum(o => o.PaidAmount);
+            pendingBalance = orders.Sum(o => o.RemainingAmount);
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredOrders = orders.Where(o => 
+            (!filterActiveOnly || o.IsActive) &&
+            (string.IsNullOrEmpty(filterGarmentType) || o.TypeName == filterGarmentType) &&
+            (!filterStartDate.HasValue || o.OrderDate >= filterStartDate) &&
+            (!filterEndDate.HasValue || o.OrderDate <= filterEndDate)
+        ).ToList();
+        
+        UpdateOrderPagination();
+    }
+
+    private void UpdateOrderPagination()
+    {
+        paginatedOrders = filteredOrders.ToPaginatedList(currentOrderPage, orderPageSize);
+    }
+
+    private void OnOrderPageChanged(int page)
+    {
+        currentOrderPage = page;
+        UpdateOrderPagination();
+        StateHasChanged();
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+    }
+
+    private void ShowCreateOrderModal()
+    {
+        createOrderModel = new CreateOrderDto { CustomerId = CustomerId };
+        showCreateOrderModal = true;
+    }
+
+    private void CloseCreateOrderModal()
+    {
+        showCreateOrderModal = false;
+        createOrderModel = new CreateOrderDto();
+    }
+
+    private async Task CreateOrder()
+    {
+        try
+        {
+            isCreatingOrder = true;
+            var newOrder = await OrderService.CreateOrderAsync(createOrderModel);
+            if (newOrder != null)
+            {
+                await LoadOrders();
+                CloseCreateOrderModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating order: {ex.Message}");
+        }
+        finally
+        {
+            isCreatingOrder = false;
+        }
+    }
+
+    private async Task ShowOrderTimeline(int orderId)
+    {
+        try
+        {
+            orderTimeline = await OrderService.GetOrderTimelineAsync(orderId);
+            showTimelineModal = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading timeline: {ex.Message}");
+        }
+    }
+
+    private void CloseTimelineModal()
+    {
+        showTimelineModal = false;
+        orderTimeline = null;
+    }
+
+    private void TakeMeasurements()
+    {
+        Navigation.NavigateTo($"/measurement-management?customerId={CustomerId}");
+    }
+
+    private void RecordPayment()
+    {
+        Navigation.NavigateTo($"/payment-management?customerId={CustomerId}");
+    }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Pending" => "bg-warning",
+        "InProgress" => "bg-info",
+        "ReadyForDelivery" => "bg-success",
+        "Delivered" => "bg-secondary",
+        "Partial" => "bg-primary",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetPriorityBadgeClass(string priority) => priority switch
+    {
+        "Express" => "bg-danger",
+        "Urgent" => "bg-warning",
+        "Regular" => "bg-primary",
+        _ => "bg-light text-dark"
+    };
+
+
+}

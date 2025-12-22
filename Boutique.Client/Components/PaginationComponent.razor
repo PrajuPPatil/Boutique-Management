@@ -1,0 +1,92 @@
+@if (TotalPages > 1)
+{
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageChanged(1)" disabled="@(CurrentPage == 1)">
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
+            </li>
+            <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageChanged(CurrentPage - 1)" disabled="@(CurrentPage == 1)">
+                    <i class="fas fa-angle-left"></i>
+                </button>
+            </li>
+
+            @for (int page = StartPage; page <= EndPage; page++)
+            {
+                var pageNumber = page;
+                <li class="page-item @(CurrentPage == pageNumber ? "active" : "")">
+                    <button class="page-link" @onclick="() => OnPageChanged(pageNumber)">
+                        @pageNumber
+                    </button>
+                </li>
+            }
+
+            <li class="page-item @(CurrentPage == TotalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageChanged(CurrentPage + 1)" disabled="@(CurrentPage == TotalPages)">
+                    <i class="fas fa-angle-right"></i>
+                </button>
+            </li>
+            <li class="page-item @(CurrentPage == TotalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageChanged(TotalPages)" disabled="@(CurrentPage == TotalPages)">
+                    <i class="fas fa-angle-double-right"></i>
+                </button>
+            </li>
+        </ul>
+        <div class="pagination-info text-center mt-2">
+            <small class="text-muted">
+                Showing @((CurrentPage - 1) * PageSize + 1) to @(Math.Min(CurrentPage * PageSize, TotalItems)) of @TotalItems entries
+            </small>
+        </div>
+    </nav>
+}
+
+<style>
+    .pagination .page-link {
+        border: 1px solid #dee2e6;
+        color: #667eea;
+        padding: 0.5rem 0.75rem;
+        margin: 0 2px;
+        border-radius: 0.375rem;
+        transition: all 0.2s ease;
+    }
+
+    .pagination .page-link:hover {
+        background-color: #f8f9fa;
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #667eea;
+        border-color: #667eea;
+        color: white;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        color: #6c757d;
+        background-color: #fff;
+        border-color: #dee2e6;
+        cursor: not-allowed;
+    }
+</style>
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public EventCallback<int> OnPageChange { get; set; }
+
+    private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+    private int StartPage => Math.Max(1, CurrentPage - 2);
+    private int EndPage => Math.Min(TotalPages, CurrentPage + 2);
+
+    private async Task OnPageChanged(int page)
+    {
+        if (page != CurrentPage && page >= 1 && page <= TotalPages)
+        {
+            await OnPageChange.InvokeAsync(page);
+        }
+    }
+}

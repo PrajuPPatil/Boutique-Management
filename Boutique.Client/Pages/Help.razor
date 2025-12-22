@@ -1,0 +1,1007 @@
+@page "/help"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Boutique.Client.Models.DTOs
+
+<div class="help-container">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-question-circle me-3"></i>Help & Support
+        </h1>
+        <p class="page-subtitle">Get help and find answers to your questions</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Search and Filters -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Search Help Topics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="search-filter-section">
+                        <div class="search-box mb-3">
+                            <input type="text" class="form-control" @bind="searchFilter.SearchTerm" @onkeypress="OnSearchKeyPress" placeholder="Search for help topics, features, or issues...">
+                            <button class="btn btn-primary" @onclick="SearchArticles">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <select class="form-select" @bind="searchFilter.Category" @bind:after="OnFilterChange">
+                                    <option value="">All Categories</option>
+                                    @foreach (var category in categories)
+                                    {
+                                        <option value="@category.Name">@category.Name (@category.ArticleCount)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <select class="form-select" @bind="searchFilter.Difficulty" @bind:after="OnFilterChange">
+                                    <option value="">All Levels</option>
+                                    <option value="Beginner">Beginner</option>
+                                    <option value="Intermediate">Intermediate</option>
+                                    <option value="Advanced">Advanced</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <select class="form-select" @bind="searchFilter.SortBy" @bind:after="OnFilterChange">
+                                    <option value="relevance">Most Relevant</option>
+                                    <option value="popular">Most Popular</option>
+                                    <option value="recent">Most Recent</option>
+                                    <option value="title">Title A-Z</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" @bind="searchFilter.ShowPopularOnly" @bind:after="OnFilterChange" id="popularOnly">
+                                    <label class="form-check-label" for="popularOnly">Popular Only</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Articles -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book me-2"></i>Help Articles
+                        <span class="badge bg-primary ms-2">@paginatedResult.TotalCount</span>
+                    </h5>
+                    <div class="results-info">
+                        Showing @((paginatedResult.PageNumber - 1) * paginatedResult.PageSize + 1)-@Math.Min(paginatedResult.PageNumber * paginatedResult.PageSize, paginatedResult.TotalCount) of @paginatedResult.TotalCount
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="loading-spinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading articles...</p>
+                        </div>
+                    }
+                    else if (paginatedResult.Articles.Any())
+                    {
+                        <div class="articles-list">
+                            @foreach (var article in paginatedResult.Articles)
+                            {
+                                <div class="article-item" @onclick="() => ToggleArticle(article.Id)">
+                                    <div class="article-header">
+                                        <div class="article-title-section">
+                                            <h6 class="article-title">@article.Title</h6>
+                                            <div class="article-meta">
+                                                <span class="badge bg-light text-dark me-2">@article.Category</span>
+                                                <span class="difficulty-badge difficulty-@article.Difficulty.ToLower()">@article.Difficulty</span>
+                                                @if (article.IsPopular)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-2"><i class="fas fa-star me-1"></i>Popular</span>
+                                                }
+                                                <span class="text-muted ms-2"><i class="fas fa-clock me-1"></i>@article.EstimatedReadTime min read</span>
+                                                <span class="text-muted ms-2"><i class="fas fa-eye me-1"></i>@article.ViewCount views</span>
+                                            </div>
+                                        </div>
+                                        <div class="article-actions">
+                                            <i class="fas @(expandedArticles.Contains(article.Id) ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                        </div>
+                                    </div>
+                                    @if (expandedArticles.Contains(article.Id))
+                                    {
+                                        <div class="article-content">
+                                            <div class="article-body">
+                                                @((MarkupString)article.Content)
+                                            </div>
+                                            <div class="article-footer">
+                                                <div class="article-tags">
+                                                    @foreach (var tag in article.Tags)
+                                                    {
+                                                        <span class="tag-badge">#@tag</span>
+                                                    }
+                                                </div>
+                                                <div class="article-dates">
+                                                    <small class="text-muted">
+                                                        Created: @article.CreatedDate.ToString("MMM dd, yyyy") | 
+                                                        Updated: @article.UpdatedDate.ToString("MMM dd, yyyy")
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        
+                        <!-- Pagination -->
+                        @if (paginatedResult.TotalPages > 1)
+                        {
+                            <nav class="pagination-nav mt-4">
+                                <ul class="pagination justify-content-center">
+                                    <li class="page-item @(paginatedResult.HasPreviousPage ? "" : "disabled")">
+                                        <button class="page-link" @onclick="() => ChangePage(1)" disabled="@(!paginatedResult.HasPreviousPage)">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginatedResult.HasPreviousPage ? "" : "disabled")">
+                                        <button class="page-link" @onclick="() => ChangePage(paginatedResult.PageNumber - 1)" disabled="@(!paginatedResult.HasPreviousPage)">
+                                            <i class="fas fa-angle-left"></i>
+                                        </button>
+                                    </li>
+                                    
+                                    @for (int i = Math.Max(1, paginatedResult.PageNumber - 2); i <= Math.Min(paginatedResult.TotalPages, paginatedResult.PageNumber + 2); i++)
+                                    {
+                                        <li class="page-item @(i == paginatedResult.PageNumber ? "active" : "")">
+                                            <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                                        </li>
+                                    }
+                                    
+                                    <li class="page-item @(paginatedResult.HasNextPage ? "" : "disabled")">
+                                        <button class="page-link" @onclick="() => ChangePage(paginatedResult.PageNumber + 1)" disabled="@(!paginatedResult.HasNextPage)">
+                                            <i class="fas fa-angle-right"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginatedResult.HasNextPage ? "" : "disabled")">
+                                        <button class="page-link" @onclick="() => ChangePage(paginatedResult.TotalPages)" disabled="@(!paginatedResult.HasNextPage)">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        }
+                    }
+                    else
+                    {
+                        <div class="no-results">
+                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                            <h5>No articles found</h5>
+                            <p class="text-muted">Try adjusting your search terms or filters</p>
+                            <button class="btn btn-outline-primary" @onclick="ClearFilters">
+                                <i class="fas fa-times me-2"></i>Clear Filters
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Categories -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-th-large me-2"></i>Categories
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="categories-list">
+                        @foreach (var category in categories)
+                        {
+                            <div class="category-item @(searchFilter.Category == category.Name ? "active" : "")" @onclick="() => FilterByCategory(category.Name)">
+                                <div class="category-icon">
+                                    <i class="@category.Icon"></i>
+                                </div>
+                                <div class="category-info">
+                                    <h6>@category.Name</h6>
+                                    <p>@category.Description</p>
+                                    <small>@category.ArticleCount articles</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contact Support -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-headset me-2"></i>Contact Support
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="contact-info">
+                            <h6>Email Support</h6>
+                            <p>support@boutique.com</p>
+                            <small>Response within 24 hours</small>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="contact-info">
+                            <h6>Phone Support</h6>
+                            <p>+91 9876543210</p>
+                            <small>Mon-Fri, 9 AM - 6 PM</small>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="contact-info">
+                            <h6>Live Chat</h6>
+                            <p>Available now</p>
+                            <small>Average response: 5 mins</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100 mt-3">
+                        <i class="fas fa-comment-dots me-2"></i>Start Live Chat
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link me-2"></i>Quick Links
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="quick-links">
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-book me-2"></i>User Manual
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-video me-2"></i>Video Tutorials
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-download me-2"></i>Download Resources
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-bug me-2"></i>Report a Bug
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-lightbulb me-2"></i>Feature Request
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-shield-alt me-2"></i>Privacy Policy
+                        </a>
+                        <a href="#" class="quick-link">
+                            <i class="fas fa-file-contract me-2"></i>Terms of Service
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private HelpSearchFilterDto searchFilter = new();
+    private PaginatedHelpResultDto paginatedResult = new();
+    private List<HelpCategoryDto> categories = new();
+    private HashSet<int> expandedArticles = new();
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoadCategories();
+        await LoadArticles();
+    }
+
+    private void LoadCategories()
+    {
+        categories = new List<HelpCategoryDto>
+        {
+            new() { Name = "Getting Started", Icon = "fas fa-play-circle", ArticleCount = 12, Description = "Basic setup and first steps" },
+            new() { Name = "Customer Management", Icon = "fas fa-users", ArticleCount = 8, Description = "Managing customer data" },
+            new() { Name = "Measurements", Icon = "fas fa-ruler", ArticleCount = 15, Description = "Recording and managing measurements" },
+            new() { Name = "Payments", Icon = "fas fa-credit-card", ArticleCount = 6, Description = "Payment tracking and billing" },
+            new() { Name = "Reports", Icon = "fas fa-chart-bar", ArticleCount = 4, Description = "Analytics and reporting" },
+            new() { Name = "Troubleshooting", Icon = "fas fa-wrench", ArticleCount = 10, Description = "Common issues and solutions" }
+        };
+    }
+
+    private async Task LoadArticles()
+    {
+        isLoading = true;
+        StateHasChanged();
+        
+        await Task.Delay(500); // Simulate API call
+        
+        var allArticles = GetSampleArticles();
+        var filteredArticles = FilterArticles(allArticles);
+        
+        paginatedResult = new PaginatedHelpResultDto
+        {
+            Articles = filteredArticles.Skip((searchFilter.PageNumber - 1) * searchFilter.PageSize).Take(searchFilter.PageSize).ToList(),
+            TotalCount = filteredArticles.Count,
+            PageNumber = searchFilter.PageNumber,
+            PageSize = searchFilter.PageSize
+        };
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private List<HelpArticleDto> GetSampleArticles()
+    {
+        return new List<HelpArticleDto>
+        {
+            new() { Id = 1, Title = "How to add a new customer", Content = "<p>To add a new customer, navigate to the Customer Management page and click the 'Add New Customer' button. Fill in all required fields including name, contact information, and address details.</p>", Category = "Customer Management", Tags = new[] { "customer", "add", "management" }, CreatedDate = DateTime.Now.AddDays(-30), UpdatedDate = DateTime.Now.AddDays(-5), ViewCount = 245, IsPopular = true, Difficulty = "Beginner", EstimatedReadTime = 3 },
+            new() { Id = 2, Title = "Recording customer measurements", Content = "<p>Navigate to the Measurements page, select the customer, choose the garment category (Men's, Women's, or Kids), select the specific garment type, and enter the measurements carefully.</p>", Category = "Measurements", Tags = new[] { "measurements", "recording", "garments" }, CreatedDate = DateTime.Now.AddDays(-25), UpdatedDate = DateTime.Now.AddDays(-3), ViewCount = 189, IsPopular = true, Difficulty = "Intermediate", EstimatedReadTime = 5 },
+            new() { Id = 3, Title = "Payment tracking and management", Content = "<p>Go to the Payments page to view all payment records. You can add new payments, update existing ones, and track payment status (Paid, Partial, Pending).</p>", Category = "Payments", Tags = new[] { "payments", "tracking", "billing" }, CreatedDate = DateTime.Now.AddDays(-20), UpdatedDate = DateTime.Now.AddDays(-2), ViewCount = 156, IsPopular = false, Difficulty = "Beginner", EstimatedReadTime = 4 },
+            new() { Id = 4, Title = "Advanced measurement techniques", Content = "<p>Learn advanced measurement techniques for complex garments including traditional wear, formal suits, and custom designs. This guide covers precision measuring and quality control.</p>", Category = "Measurements", Tags = new[] { "advanced", "techniques", "precision" }, CreatedDate = DateTime.Now.AddDays(-15), UpdatedDate = DateTime.Now.AddDays(-1), ViewCount = 98, IsPopular = false, Difficulty = "Advanced", EstimatedReadTime = 8 },
+            new() { Id = 5, Title = "Setting up your boutique profile", Content = "<p>Complete your boutique setup by configuring your business profile, adding your logo, setting up payment methods, and customizing your workflow preferences.</p>", Category = "Getting Started", Tags = new[] { "setup", "profile", "configuration" }, CreatedDate = DateTime.Now.AddDays(-10), UpdatedDate = DateTime.Now, ViewCount = 312, IsPopular = true, Difficulty = "Beginner", EstimatedReadTime = 6 },
+            new() { Id = 6, Title = "Generating customer reports", Content = "<p>Create comprehensive reports for customer analytics, payment summaries, and business insights. Learn to export data and schedule automated reports.</p>", Category = "Reports", Tags = new[] { "reports", "analytics", "export" }, CreatedDate = DateTime.Now.AddDays(-8), UpdatedDate = DateTime.Now, ViewCount = 87, IsPopular = false, Difficulty = "Intermediate", EstimatedReadTime = 7 },
+            new() { Id = 7, Title = "Troubleshooting login issues", Content = "<p>Common solutions for login problems including password reset, account verification, and browser compatibility issues. Step-by-step troubleshooting guide.</p>", Category = "Troubleshooting", Tags = new[] { "login", "password", "troubleshooting" }, CreatedDate = DateTime.Now.AddDays(-5), UpdatedDate = DateTime.Now, ViewCount = 134, IsPopular = false, Difficulty = "Beginner", EstimatedReadTime = 4 }
+        };
+    }
+
+    private List<HelpArticleDto> FilterArticles(List<HelpArticleDto> articles)
+    {
+        var filtered = articles.AsQueryable();
+
+        if (!string.IsNullOrEmpty(searchFilter.SearchTerm))
+        {
+            filtered = filtered.Where(a => a.Title.Contains(searchFilter.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                         a.Content.Contains(searchFilter.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                         a.Tags.Any(t => t.Contains(searchFilter.SearchTerm, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (!string.IsNullOrEmpty(searchFilter.Category))
+        {
+            filtered = filtered.Where(a => a.Category == searchFilter.Category);
+        }
+
+        if (!string.IsNullOrEmpty(searchFilter.Difficulty))
+        {
+            filtered = filtered.Where(a => a.Difficulty == searchFilter.Difficulty);
+        }
+
+        if (searchFilter.ShowPopularOnly)
+        {
+            filtered = filtered.Where(a => a.IsPopular);
+        }
+
+        filtered = searchFilter.SortBy switch
+        {
+            "popular" => filtered.OrderByDescending(a => a.ViewCount),
+            "recent" => filtered.OrderByDescending(a => a.UpdatedDate),
+            "title" => filtered.OrderBy(a => a.Title),
+            _ => filtered.OrderByDescending(a => a.IsPopular).ThenByDescending(a => a.ViewCount)
+        };
+
+        return filtered.ToList();
+    }
+
+    private async Task SearchArticles()
+    {
+        searchFilter.PageNumber = 1;
+        await LoadArticles();
+    }
+
+    private async Task OnFilterChange()
+    {
+        searchFilter.PageNumber = 1;
+        await LoadArticles();
+    }
+
+    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchArticles();
+        }
+    }
+
+    private async Task ChangePage(int pageNumber)
+    {
+        searchFilter.PageNumber = pageNumber;
+        await LoadArticles();
+    }
+
+    private void ToggleArticle(int articleId)
+    {
+        if (expandedArticles.Contains(articleId))
+        {
+            expandedArticles.Remove(articleId);
+        }
+        else
+        {
+            expandedArticles.Add(articleId);
+        }
+    }
+
+    private async Task FilterByCategory(string categoryName)
+    {
+        searchFilter.Category = searchFilter.Category == categoryName ? "" : categoryName;
+        searchFilter.PageNumber = 1;
+        await LoadArticles();
+    }
+
+    private async Task ClearFilters()
+    {
+        searchFilter = new HelpSearchFilterDto();
+        await LoadArticles();
+    }
+}
+
+<style>
+    .help-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    /* Enhanced Cards */
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 2rem;
+        border-radius: 20px 20px 0 0 !important;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1.4rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .card-body {
+        padding: 2rem;
+        position: relative;
+    }
+
+    .search-filter-section {
+        position: relative;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .search-box .form-control {
+        flex: 1;
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 0.875rem 1.25rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .search-box .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .search-box .btn {
+        border-radius: 12px;
+        padding: 0.875rem 1.25rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .filter-group .form-select {
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    .results-info {
+        font-size: 0.85rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .articles-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .article-item {
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: white;
+    }
+
+    .article-item:hover {
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1);
+        transform: translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .article-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .article-title {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    .article-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .difficulty-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .difficulty-beginner { background: #dcfce7; color: #166534; }
+    .difficulty-intermediate { background: #fef3c7; color: #92400e; }
+    .difficulty-advanced { background: #fecaca; color: #991b1b; }
+
+    .article-content {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .article-body {
+        color: #6b7280;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    .article-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .tag-badge {
+        background: rgba(99, 102, 241, 0.1);
+        color: #667eea;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-right: 0.5rem;
+    }
+
+    .loading-spinner {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .pagination-nav .page-link {
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        color: #667eea;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .pagination-nav .page-item.active .page-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+    }
+
+    .pagination-nav .page-link:hover {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: #667eea;
+        transform: translateY(-1px);
+    }
+
+    .categories-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .category-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .category-item:hover,
+    .category-item.active {
+        background: rgba(99, 102, 241, 0.05);
+        border-color: #667eea;
+        transform: translateX(5px);
+    }
+
+    .category-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        font-size: 1.1rem;
+    }
+
+    .category-info h6 {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .category-info p {
+        color: #6b7280;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-info small {
+        color: #9ca3af;
+        font-size: 0.75rem;
+    }
+
+    /* Enhanced Contact Items */
+    .contact-item {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        margin-bottom: 0.5rem;
+    }
+
+    .contact-item:hover {
+        background: rgba(99, 102, 241, 0.05);
+        transform: translateX(5px);
+        padding-left: 1rem;
+    }
+
+    .contact-item:last-child {
+        border-bottom: none;
+    }
+
+    .contact-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-right: 1.5rem;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .contact-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .contact-item:hover .contact-icon::before {
+        left: 100%;
+    }
+
+    .contact-item:hover .contact-icon {
+        transform: scale(1.1);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .contact-info h6 {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .contact-info p {
+        color: #667eea;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .contact-info small {
+        color: #6b7280;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        background: rgba(99, 102, 241, 0.1);
+        border-radius: 8px;
+    }
+
+    /* Enhanced Quick Links */
+    .quick-links {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .quick-link {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        color: #1f2937;
+        text-decoration: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        font-weight: 600;
+        background: white;
+    }
+
+    .quick-link:hover {
+        background: rgba(99, 102, 241, 0.05);
+        color: #667eea;
+        transform: translateX(8px);
+        border-color: rgba(99, 102, 241, 0.3);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1);
+    }
+
+    .quick-link i {
+        color: #667eea;
+        transition: all 0.3s ease;
+    }
+
+    .quick-link:hover i {
+        transform: scale(1.2);
+    }
+
+    /* Enhanced Primary Button */
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    }
+
+    /* Enhanced Responsive Design */
+    @@media (max-width: 768px) {
+        .help-container {
+            padding: 1rem 0.5rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+        }
+
+        .card-header,
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        .search-box {
+            flex-direction: column;
+        }
+
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .article-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .article-meta {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .article-footer {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .contact-item {
+            flex-direction: column;
+            text-align: center;
+            gap: 1rem;
+        }
+
+        .contact-icon {
+            margin-right: 0;
+        }
+
+        .category-item {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+
+        .category-icon {
+            margin-right: 0;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .contact-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+        }
+
+        .card-header h5 {
+            font-size: 1.2rem;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        * {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+</style>

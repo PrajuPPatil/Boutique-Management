@@ -1,0 +1,1253 @@
+@page "/customer-management"
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject NavigationManager Navigation
+@using Boutique.Client.Models
+@using Boutique.Client.Components
+
+
+<div class="customer-management-container">
+    <div class="page-header text-center">
+        <div class="mb-3">
+            <h1 class="page-title mb-0">
+                <i class="fas fa-users me-3"></i>Customer Management
+            </h1>
+        </div>
+        <p class="page-subtitle mb-3">Manage customers, measurements, and orders</p>
+        <div class="text-end">
+            <button class="btn btn-primary" @onclick="ShowMultiStepForm">
+                <i class="fas fa-plus me-2"></i>Add New Customer
+            </button>
+        </div>
+    </div>
+
+    <!-- Customer List -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Customer List
+                </h5>
+                <div class="search-box">
+                    <input type="text" class="form-control" placeholder="Search customers..." @bind="searchTerm" @oninput="FilterCustomers" />
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Loading customers...</p>
+                </div>
+            }
+            else if (filteredCustomers?.Any() == true)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Customer</th>
+                                <th>Contact</th>
+                                <th>Address</th>
+                                <th>Gender</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var customer in paginatedCustomers.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="customer-avatar">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <div class="ms-3">
+                                                <h6 class="mb-0">@customer.CustomerName</h6>
+                                                <small class="text-muted">ID: @customer.CustomerId</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div><i class="fas fa-envelope me-1"></i>@customer.Email</div>
+                                            <div><i class="fas fa-phone me-1"></i>@customer.PhoneNo</div>
+                                        </div>
+                                    </td>
+                                    <td>@customer.Address</td>
+                                    <td>
+                                        <span class="badge bg-info">@customer.Gender</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(customer.Active ? "bg-success" : "bg-secondary")">
+                                            @(customer.Active ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="action-btn view-btn" @onclick="() => ViewProfile(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="View Profile">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "view")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-eye"></i>
+                                                }
+                                            </button>
+                                            <button class="action-btn edit-btn" @onclick="() => EditCustomer(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="Edit Customer">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "edit")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-edit"></i>
+                                                }
+                                            </button>
+                                            <button class="action-btn measure-btn" @onclick="() => ManageMeasurements(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="Manage Measurements">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "measurements")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-ruler"></i>
+                                                }
+                                            </button>
+                                            <button class="action-btn payment-btn" @onclick="() => ManagePayments(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="Manage Payments">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "payments")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-credit-card"></i>
+                                                }
+                                            </button>
+                                            <button class="action-btn order-btn" @onclick="() => CreateOrder(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="Create Order">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "order")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-shopping-bag"></i>
+                                                }
+                                            </button>
+                                            <button class="action-btn delete-btn" @onclick="() => DeleteCustomer(customer)" 
+                                                    disabled="@(processingCustomerId == customer.CustomerId)" 
+                                                    title="Delete Customer">
+                                                @if (processingCustomerId == customer.CustomerId && currentAction == "delete")
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-trash"></i>
+                                                }
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center p-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>No customers found</h5>
+                    <p class="text-muted">Add your first customer to get started</p>
+                </div>
+            }
+        </div>
+        @if (paginatedCustomers.TotalItems > 0)
+        {
+            <div class="card-footer bg-light">
+                <PaginationComponent CurrentPage="currentPage" 
+                                   TotalItems="paginatedCustomers.TotalItems" 
+                                   PageSize="pageSize" 
+                                   OnPageChange="OnPageChanged" />
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Multi-Step Customer Form Modal -->
+@if (showMultiStepModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>Add New Customer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseMultiStepModal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <MultiStepCustomerForm OnCustomerCreated="OnCustomerCreated" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Edit Customer Modal -->
+@if (showCustomerModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>Edit Customer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseCustomerModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="customerModel" OnValidSubmit="SaveCustomer">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="customerModel.CustomerName" class="form-control" />
+                                    <label>Customer Name</label>
+                                    <ValidationMessage For="@(() => customerModel.CustomerName)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="customerModel.Email" class="form-control" />
+                                    <label>Email</label>
+                                    <ValidationMessage For="@(() => customerModel.Email)" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="customerModel.PhoneNo" class="form-control" />
+                                    <label>Phone Number</label>
+                                    <ValidationMessage For="@(() => customerModel.PhoneNo)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputSelect @bind-Value="customerModel.Gender" class="form-select">
+                                        <option value="">Select Gender</option>
+                                        <option value="Men">Men</option>
+                                        <option value="Women">Women</option>
+                                        <option value="Kids">Kids</option>
+                                    </InputSelect>
+                                    <label>Gender</label>
+                                    <ValidationMessage For="@(() => customerModel.Gender)" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <InputTextArea @bind-Value="customerModel.Address" class="form-control" rows="3" />
+                            <ValidationMessage For="@(() => customerModel.Address)" />
+                        </div>
+                        <div class="form-check mb-3">
+                            <InputCheckbox @bind-Value="customerModel.Active" class="form-check-input" />
+                            <label class="form-check-label">Active Customer</label>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseCustomerModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Update Customer
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Customer Details Modal -->
+@if (showCustomerDetailsModal && selectedCustomer != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user me-2"></i>Customer Details
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseCustomerDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Customer Name:</label>
+                                <p>@selectedCustomer.CustomerName</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Email:</label>
+                                <p>@selectedCustomer.Email</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Phone Number:</label>
+                                <p>@selectedCustomer.PhoneNo</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Status:</label>
+                                <p>
+                                    <span class="badge @(selectedCustomer.Active ? "bg-success" : "bg-secondary")">
+                                        @(selectedCustomer.Active ? "Active" : "Inactive")
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <label>Address:</label>
+                        <p>@selectedCustomer.Address</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Gender:</label>
+                        <p><span class="badge bg-info">@selectedCustomer.Gender</span></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCustomerDetailsModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="() => EditCustomer(selectedCustomer)">
+                        <i class="fas fa-edit me-2"></i>Edit Customer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirmModal && customerToDelete != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteConfirmModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the customer <strong>@customerToDelete.CustomerName</strong>?</p>
+                    <p class="text-muted">This action cannot be undone and will remove all associated data.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteConfirmModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteCustomer">
+                        <i class="fas fa-trash me-2"></i>Delete Customer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* ===================================
+       Customer Management - Enhanced Styles
+       =================================== */
+
+    .customer-management-container {
+        width: 100%;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+        padding: 2rem 1rem;
+    }
+
+    .customer-management-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(99,102,241,0.05)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>') repeat;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    /* Enhanced Search Box */
+    .search-box {
+        width: 350px;
+        position: relative;
+    }
+
+    .search-box .form-control {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .search-box .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25), 0 8px 25px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    /* Enhanced Customer Avatar */
+    .customer-avatar {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.4rem;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .customer-avatar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .customer-avatar:hover::before {
+        left: 100%;
+    }
+
+    .customer-avatar:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Enhanced Card Styling */
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px 20px 0 0 !important;
+        padding: 2rem;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1.4rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    /* Enhanced Table Styling */
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        font-weight: 700;
+        color: #1f2937;
+        border-bottom: 2px solid rgba(99, 102, 241, 0.1);
+        padding: 1.25rem 1.5rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background: rgba(99, 102, 241, 0.05);
+        transform: scale(1.01);
+    }
+
+    /* Professional Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 2px solid;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        transition: left 0.5s;
+    }
+
+    .action-btn:hover::before {
+        left: 100%;
+    }
+
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .action-btn:not(:disabled):hover {
+        transform: translateY(-3px) scale(1.1);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-btn:not(:disabled):active {
+        transform: translateY(-1px) scale(1.05);
+        transition: all 0.1s;
+    }
+
+    /* Specific Button Styles */
+    .view-btn {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .view-btn:hover {
+        background: #667eea;
+        color: white;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .edit-btn {
+        border-color: #48bb78;
+        color: #48bb78;
+    }
+
+    .edit-btn:hover {
+        background: #48bb78;
+        color: white;
+        box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+    }
+
+    .measure-btn {
+        border-color: #4299e1;
+        color: #4299e1;
+    }
+
+    .measure-btn:hover {
+        background: #4299e1;
+        color: white;
+        box-shadow: 0 8px 25px rgba(66, 153, 225, 0.4);
+    }
+
+    .payment-btn {
+        border-color: #ed8936;
+        color: #ed8936;
+    }
+
+    .payment-btn:hover {
+        background: #ed8936;
+        color: white;
+        box-shadow: 0 8px 25px rgba(237, 137, 54, 0.4);
+    }
+
+    .delete-btn {
+        border-color: #f56565;
+        color: #f56565;
+    }
+
+    .delete-btn:hover {
+        background: #f56565;
+        color: white;
+        box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
+        animation: shake 0.5s ease-in-out;
+    }
+
+    .order-btn {
+        border-color: #9f7aea;
+        color: #9f7aea;
+    }
+
+    .order-btn:hover {
+        background: #9f7aea;
+        color: white;
+        box-shadow: 0 8px 25px rgba(159, 122, 234, 0.4);
+    }
+
+    @@keyframes shake {
+        0%, 100% { transform: translateY(-3px) scale(1.1) rotate(0deg); }
+        25% { transform: translateY(-3px) scale(1.1) rotate(-2deg); }
+        75% { transform: translateY(-3px) scale(1.1) rotate(2deg); }
+    }
+
+    /* Enhanced Modal Styling */
+    .modal-content {
+        border-radius: 24px;
+        border: none;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        padding: 2rem;
+    }
+
+    .modal-header .modal-title {
+        font-weight: 800;
+        font-size: 1.5rem;
+        letter-spacing: -0.01em;
+    }
+
+    .modal-header .btn-close {
+        filter: invert(1);
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+
+    .modal-header .btn-close:hover {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    .modal-body {
+        padding: 2rem;
+        background: white;
+    }
+
+    .modal-footer {
+        background: #f8fafc;
+        border-top: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 1.5rem 2rem;
+    }
+
+    /* Enhanced Form Controls */
+    .form-floating > .form-control {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        padding: 1rem 1.25rem;
+        background: white;
+    }
+
+    .form-floating > .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .form-floating > label {
+        color: #6b7280;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+    }
+
+    .form-check-input {
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        width: 1.5rem;
+        height: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .form-check-label {
+        font-weight: 600;
+        color: #1f2937;
+        margin-left: 0.5rem;
+    }
+
+    /* Enhanced Primary Button */
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        border: none;
+        border-radius: 16px;
+        font-weight: 600;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+    }
+
+    /* Enhanced Badge Styling */
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.6rem 1rem;
+        border-radius: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .bg-success {
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+        box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+    }
+
+    .bg-secondary {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+        box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+    }
+
+    /* Loading and Empty States */
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border-width: 0.3rem;
+    }
+
+    .text-center p {
+        font-size: 1.1rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .text-center h5 {
+        color: #1f2937;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .text-center .fa-3x {
+        font-size: 4rem;
+        opacity: 0.3;
+    }
+
+    /* Detail Item Styling */
+    .detail-item {
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-item label {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .detail-item p {
+        color: #6b7280;
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    /* Enhanced Responsive Design */
+    @@media (max-width: 768px) {
+        .customer-management-container {
+            padding: 1rem 0.5rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+        }
+
+        .search-box {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .card-header {
+            padding: 1.5rem;
+        }
+
+        .card-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+
+        .table-responsive {
+            border-radius: 0 0 20px 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .action-btn {
+            width: 35px;
+            height: 35px;
+            font-size: 0.8rem;
+        }
+
+        .modal-dialog {
+            margin: 1rem;
+        }
+
+        .modal-header,
+        .modal-body,
+        .modal-footer {
+            padding: 1.5rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .customer-avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .modal-header .modal-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    /* Performance Optimizations */
+    .card,
+    .btn,
+    .customer-avatar,
+    .form-control,
+    .table tbody tr {
+        will-change: transform;
+    }
+
+    /* Reduce motion for users who prefer it */
+    @@media (prefers-reduced-motion: reduce) {
+        .card,
+        .btn,
+        .customer-avatar,
+        .form-control,
+        .table tbody tr,
+        .modal-content {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+</style>
+
+@code {
+    private List<CustomerDto> customers = new();
+    private List<CustomerDto> filteredCustomers = new();
+    private PaginationModel<CustomerDto> paginatedCustomers = new();
+    private CustomerDto customerModel = new();
+    private CustomerDto? selectedCustomer = null;
+    private CustomerDto? customerToDelete = null;
+    private string searchTerm = string.Empty;
+    private bool showCustomerModal = false;
+    private bool showMultiStepModal = false;
+    private bool showCustomerDetailsModal = false;
+    private bool showDeleteConfirmModal = false;
+    private bool isEditMode = false;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int processingCustomerId = 0;
+    private string currentAction = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        try
+        {
+            isLoading = true;
+            customers = await CustomerService.GetCustomersAsync() ?? new List<CustomerDto>();
+            filteredCustomers = customers;
+        }
+        catch (Exception)
+        {
+            customers = new List<CustomerDto>();
+            filteredCustomers = new List<CustomerDto>();
+        }
+        finally
+        {
+            isLoading = false;
+            UpdatePagination();
+        }
+    }
+
+    private void FilterCustomers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredCustomers = customers;
+        }
+        else
+        {
+            filteredCustomers = customers.Where(c => 
+                c.CustomerName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                c.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                c.PhoneNo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private void UpdatePagination()
+    {
+        paginatedCustomers = filteredCustomers.ToPaginatedList(currentPage, pageSize);
+    }
+
+    private void OnPageChanged(int page)
+    {
+        currentPage = page;
+        UpdatePagination();
+        StateHasChanged();
+    }
+
+    private void ShowAddCustomerModal()
+    {
+        customerModel = new CustomerDto { Active = true };
+        isEditMode = false;
+        showCustomerModal = true;
+    }
+
+    private void ShowMultiStepForm()
+    {
+        showMultiStepModal = true;
+    }
+
+    private void CloseMultiStepModal()
+    {
+        showMultiStepModal = false;
+    }
+
+    private async Task OnCustomerCreated(CustomerDto customer)
+    {
+        await LoadCustomers();
+        CloseMultiStepModal();
+    }
+
+    private async Task EditCustomer(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "edit";
+        StateHasChanged();
+        
+        await Task.Delay(200);
+        
+        customerModel = new CustomerDto
+        {
+            CustomerId = customer.CustomerId,
+            CustomerName = customer.CustomerName,
+            Email = customer.Email,
+            PhoneNo = customer.PhoneNo,
+            Address = customer.Address,
+            Gender = customer.Gender,
+            CreatedDate = customer.CreatedDate,
+            Active = customer.Active
+        };
+        isEditMode = true;
+        showCustomerModal = true;
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private void CloseCustomerModal()
+    {
+        showCustomerModal = false;
+        customerModel = new CustomerDto();
+    }
+
+    private async Task SaveCustomer()
+    {
+        try
+        {
+            isSaving = true;
+            
+            if (isEditMode)
+            {
+                await CustomerService.UpdateCustomerAsync(customerModel.CustomerId, customerModel);
+            }
+            else
+            {
+                await CustomerService.AddCustomerAsync(customerModel);
+            }
+            
+            await LoadCustomers();
+            CloseCustomerModal();
+            StateHasChanged(); // Force UI refresh
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ViewProfile(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "view";
+        StateHasChanged();
+        
+        await Task.Delay(300); // Simulate processing
+        Navigation.NavigateTo($"/customer-profile/{customer.CustomerId}");
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private void ViewCustomer(CustomerDto customer)
+    {
+        // Show customer details in modal or navigate to details page
+        selectedCustomer = customer;
+        showCustomerDetailsModal = true;
+    }
+
+    private async Task ManageMeasurements(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "measurements";
+        StateHasChanged();
+        
+        await Task.Delay(300);
+        Navigation.NavigateTo($"/measurements/{customer.CustomerId}");
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private async Task ManagePayments(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "payments";
+        StateHasChanged();
+        
+        await Task.Delay(300);
+        Navigation.NavigateTo($"/payments/{customer.CustomerId}");
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private async Task CreateOrder(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "order";
+        StateHasChanged();
+        
+        await Task.Delay(300);
+        Navigation.NavigateTo($"/customer-profile/{customer.CustomerId}");
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private async Task DeleteCustomer(CustomerDto customer)
+    {
+        processingCustomerId = customer.CustomerId;
+        currentAction = "delete";
+        StateHasChanged();
+        
+        await Task.Delay(200);
+        
+        customerToDelete = customer;
+        showDeleteConfirmModal = true;
+        
+        processingCustomerId = 0;
+        currentAction = string.Empty;
+    }
+
+    private async Task ConfirmDeleteCustomer()
+    {
+        if (customerToDelete != null)
+        {
+            try
+            {
+                await CustomerService.DeleteCustomerAsync(customerToDelete.CustomerId);
+                await LoadCustomers();
+                CloseDeleteConfirmModal();
+            }
+            catch (Exception)
+            {
+                // Handle error - could show toast notification
+            }
+        }
+    }
+
+    private void CloseDeleteConfirmModal()
+    {
+        showDeleteConfirmModal = false;
+        customerToDelete = null;
+    }
+
+    private void CloseCustomerDetailsModal()
+    {
+        showCustomerDetailsModal = false;
+        selectedCustomer = null;
+    }
+}

@@ -1,0 +1,196 @@
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Services
+@using System.Security.Claims
+@inject ProfileUpdateService ProfileService
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@implements IDisposable
+
+<div class="user-profile-display">
+    <div class="user-avatar">
+        @GetUserInitial()
+    </div>
+    <div class="user-info @(ShowDetails ? "" : "d-none d-md-block")">
+        <div class="user-name">@GetUserDisplayName()</div>
+        <div class="user-role">@GetUserRole()</div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool ShowDetails { get; set; } = true;
+    [Parameter] public string AvatarSize { get; set; } = "40px";
+    [Parameter] public EventCallback<UserProfileDto?> OnProfileLoaded { get; set; }
+
+    private UserProfileDto? currentUser;
+    private ClaimsPrincipal? user;
+    private Timer? refreshTimer;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to profile updates
+        ProfileService.ProfileUpdated += OnProfileUpdatedFromService;
+        
+        await LoadUserProfile();
+        
+        // Set up periodic refresh every 2 minutes for real-time updates
+        refreshTimer = new Timer(async _ => await RefreshProfile(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+    }
+
+    private async Task LoadUserProfile()
+    {
+        if (isLoading) return;
+        
+        isLoading = true;
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            user = authState.User;
+            
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                currentUser = await ProfileService.GetCurrentProfileAsync();
+                await OnProfileLoaded.InvokeAsync(currentUser);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+            // Handle error silently, will fall back to JWT claims
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshProfile()
+    {
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            currentUser = await ProfileService.GetCurrentProfileAsync(forceRefresh: true);
+            await OnProfileLoaded.InvokeAsync(currentUser);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task ForceRefresh()
+    {
+        await RefreshProfile();
+    }
+
+    private async void OnProfileUpdatedFromService(UserProfileDto? profile)
+    {
+        currentUser = profile;
+        await OnProfileLoaded.InvokeAsync(currentUser);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetUserDisplayName()
+    {
+        if (currentUser != null && !string.IsNullOrEmpty(currentUser.FullName))
+        {
+            return currentUser.FullName;
+        }
+        
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var name = user.FindFirst(ClaimTypes.Name)?.Value ?? 
+                      user.FindFirst("name")?.Value ?? 
+                      user.FindFirst("given_name")?.Value;
+            return !string.IsNullOrEmpty(name) ? name : "User";
+        }
+        
+        return "User";
+    }
+
+    private string GetUserRole()
+    {
+        if (currentUser != null && !string.IsNullOrEmpty(currentUser.Role))
+        {
+            return currentUser.Role;
+        }
+        
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var role = user.FindFirst(ClaimTypes.Role)?.Value ?? 
+                      user.FindFirst("role")?.Value;
+            return !string.IsNullOrEmpty(role) ? role : "User";
+        }
+        
+        return "User";
+    }
+
+    private string GetUserEmail()
+    {
+        if (currentUser != null && !string.IsNullOrEmpty(currentUser.Email))
+        {
+            return currentUser.Email;
+        }
+        
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(ClaimTypes.Email)?.Value ?? 
+                       user.FindFirst("email")?.Value;
+            return !string.IsNullOrEmpty(email) ? email : "user@boutique.com";
+        }
+        
+        return "user@boutique.com";
+    }
+
+    private string GetUserInitial()
+    {
+        if (currentUser != null)
+        {
+            return currentUser.InitialLetter;
+        }
+        
+        var displayName = GetUserDisplayName();
+        return !string.IsNullOrEmpty(displayName) ? displayName[0].ToString().ToUpper() : "U";
+    }
+
+    public void Dispose()
+    {
+        ProfileService.ProfileUpdated -= OnProfileUpdatedFromService;
+        refreshTimer?.Dispose();
+    }
+}
+
+<style>
+    .user-profile-display {
+        display: flex;
+        align-items: center;
+    }
+
+    .user-avatar {
+        width: var(--avatar-size, 40px);
+        height: var(--avatar-size, 40px);
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: calc(var(--avatar-size, 40px) * 0.4);
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-right: 0.75rem;
+    }
+
+    .user-info {
+        text-align: left;
+    }
+
+    .user-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        line-height: 1.2;
+        color: white;
+    }
+
+    .user-role {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        line-height: 1;
+        color: rgba(255,255,255,0.8);
+    }
+</style>

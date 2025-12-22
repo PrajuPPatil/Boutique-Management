@@ -1,0 +1,82 @@
+@* Legacy Navigation Menu Component - Alternative navigation layout *@
+@* Note: This is a fallback navigation component, MainLayout.razor contains the primary navigation *@
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        @* Brand link to home page *@
+        <a class="navbar-brand" href="">Boutique.Client</a>
+        @* Mobile menu toggle button *@
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+@* Collapsible navigation menu with business function links *@
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        @* Home page link *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        @* Demo counter page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+        @* Demo weather page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+        @* Order management page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="orders">
+                <span class="bi bi-cart-fill" aria-hidden="true"></span> Orders
+            </NavLink>
+        </div>
+        @* Customer management page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="customer-management">
+                <span class="bi bi-people-fill" aria-hidden="true"></span> Customers
+            </NavLink>
+        </div>
+        @* Payment management page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="payment-management">
+                <span class="bi bi-credit-card-fill" aria-hidden="true"></span> Payment Management
+            </NavLink>
+        </div>
+        @* Measurement management page *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="measurements-manage">
+                <span class="bi bi-rulers" aria-hidden="true"></span> Measurement Management
+            </NavLink>
+        </div>
+        @* Garment type management page - CRUD operations for garment categories *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="types">
+                @* Bootstrap icon for tags/categories *@
+                <span class="bi bi-tags-fill" aria-hidden="true"></span> Garment Types
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    // Navigation menu collapse state for mobile responsiveness
+    private bool collapseNavMenu = true;
+
+    // CSS class for controlling menu visibility (Bootstrap collapse)
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    // Toggle navigation menu visibility on mobile devices
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

@@ -1,0 +1,129 @@
+@using Boutique.Client.Services
+@inject OrderService OrderService
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">Total Orders</h5>
+                <h2>@totalOrders</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">Pending</h5>
+                <h2>@pendingOrders</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title">In Progress</h5>
+                <h2>@inProgressOrders</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">Ready</h5>
+                <h2>@readyOrders</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Orders</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Est. Delivery</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in recentOrders.Take(5))
+                            {
+                                <tr>
+                                    <td>@order.OrderId</td>
+                                    <td>@order.CustomerName</td>
+                                    <td><span class="badge @GetStatusBadgeClass(order.Status)">@order.Status</span></td>
+                                    <td><span class="badge @GetPriorityBadgeClass(order.Priority)">@order.Priority</span></td>
+                                    <td>@order.EstimatedDeliveryDate.ToString("dd/MM/yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<OrderDto> recentOrders = new();
+    private int totalOrders = 0;
+    private int pendingOrders = 0;
+    private int inProgressOrders = 0;
+    private int readyOrders = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrderStats();
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadOrderStats();
+        StateHasChanged();
+    }
+
+    private async Task LoadOrderStats()
+    {
+        var orders = await OrderService.GetAllOrdersAsync();
+        recentOrders = orders.OrderByDescending(o => o.OrderDate).ToList();
+        
+        totalOrders = orders.Count;
+        pendingOrders = orders.Count(o => o.Status == "Pending");
+        inProgressOrders = orders.Count(o => o.Status == "InProgress");
+        readyOrders = orders.Count(o => o.Status == "ReadyForDelivery");
+    }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Pending" => "bg-warning",
+        "InProgress" => "bg-info",
+        "ReadyForDelivery" => "bg-success",
+        "Delivered" => "bg-secondary",
+        "Partial" => "bg-primary",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetPriorityBadgeClass(string priority) => priority switch
+    {
+        "Express" => "bg-danger",
+        "Urgent" => "bg-warning", 
+        "Regular" => "bg-primary",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetStatusDisplayName(string status) => status switch
+    {
+        "InProgress" => "In Progress",
+        "ReadyForDelivery" => "Ready",
+        _ => status
+    };
+}

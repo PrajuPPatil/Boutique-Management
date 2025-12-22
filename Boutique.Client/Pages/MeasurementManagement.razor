@@ -1,0 +1,1638 @@
+@page "/measurements/{CustomerId:int}"
+@inject NavigationManager Navigation
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.CustomerMeasurementService MeasurementService
+@using Boutique.Client.Components
+@using Boutique.Client.Models
+
+<div class="measurement-container">
+    <div class="page-header text-center">
+        <div class="mb-3">
+            <h1 class="page-title mb-0">
+                <i class="fas fa-ruler me-3"></i>Measurement Management
+            </h1>
+        </div>
+        <p class="page-subtitle mb-3">Customer: @customerName</p>
+        <div>
+            <button class="btn btn-secondary" @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>Back to Customers
+            </button>
+        </div>
+    </div>
+
+    <!-- Garment Type Selection -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-tags me-2"></i>Select Garment Type for @customerGender
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-floating">
+                        <select class="form-select" @bind="selectedGarmentType">
+                            <option value="">Select Garment Type</option>
+                            @if (customerGender == "Men")
+                            {
+                                <option value="Kurta">Kurta</option>
+                                <option value="Shirt">Shirt</option>
+                                <option value="TShirt">T-Shirt</option>
+                                <option value="Pant">Pant</option>
+                                <option value="Payjama">Payjama</option>
+                            }
+                            else if (customerGender == "Women")
+                            {
+                                <option value="Kurti">Kurti</option>
+                                <option value="Blazer">Blazer</option>
+                                <option value="Top">Top</option>
+                                <option value="Frock">Frock</option>
+                                <option value="Payjama">Payjama</option>
+                            }
+                        </select>
+                        <label>Garment Type</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100 h-100" @onclick="ShowMeasurementForm" disabled="@(string.IsNullOrEmpty(selectedGarmentType))">
+                        <i class="fas fa-plus me-2"></i>Add Measurements
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Measurement Form -->
+    @if (showMeasurementForm)
+    {
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-ruler-combined me-2"></i>@customerGender @selectedGarmentType Measurements
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="measurement-form">
+                    <h6 class="mb-3">@customerGender @selectedGarmentType Measurements</h6>
+                    <EditForm Model="measurementData" OnValidSubmit="SaveMeasurements">
+                        @if (customerGender == "Men")
+                        {
+                            @if (selectedGarmentType == "Kurta")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <ValidatedMeasurementInput Label="Chest" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Chest"
+                                                                 MinValue="34" MaxValue="52"
+                                                                 @bind-Value="measurementData.Chest"
+                                                                 ValidationChanged="OnValidationChanged" />
+                                        <ValidatedMeasurementInput Label="Length" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Length"
+                                                                 MinValue="28" MaxValue="36"
+                                                                 @bind-Value="measurementData.Length" />
+                                        <ValidatedMeasurementInput Label="Shoulder" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Shoulder"
+                                                                 MinValue="15" MaxValue="22"
+                                                                 @bind-Value="measurementData.Shoulder" />
+                                        <ValidatedMeasurementInput Label="Sleeve Length" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Sleeve Length"
+                                                                 MinValue="22" MaxValue="27"
+                                                                 @bind-Value="measurementData.SleeveLength" />
+                                        <ValidatedMeasurementInput Label="Neck" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Neck"
+                                                                 MinValue="14" MaxValue="20"
+                                                                 @bind-Value="measurementData.Neck" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <ValidatedMeasurementInput Label="Armhole" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Armhole"
+                                                                 MinValue="16" MaxValue="24"
+                                                                 @bind-Value="measurementData.Armhole" />
+                                        <ValidatedMeasurementInput Label="Waist" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Waist"
+                                                                 MinValue="28" MaxValue="44"
+                                                                 @bind-Value="measurementData.Waist" />
+                                        <ValidatedMeasurementInput Label="Hip" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Hips"
+                                                                 MinValue="34" MaxValue="48"
+                                                                 @bind-Value="measurementData.Hip" />
+                                        <ValidatedMeasurementInput Label="Sleeve Circumference" 
+                                                                 Gender="M"
+                                                                 MeasurementType="Upper Arm"
+                                                                 MinValue="10" MaxValue="16"
+                                                                 @bind-Value="measurementData.SleeveCircumference" />
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.FrontNeckDepth" class="form-control" step="0.1" />
+                                            <label>Front Neck Depth (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.BackNeckDepth" class="form-control" step="0.1" />
+                                            <label>Back Neck Depth (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ShoulderSlope" class="form-control" step="0.1" />
+                                            <label>Shoulder Slope (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SideSeam" class="form-control" step="0.1" />
+                                            <label>Side Seam (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Shirt")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Chest" class="form-control" step="0.1" />
+                                            <label>Chest (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Neck" class="form-control" step="0.1" />
+                                            <label>Neck (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Cuff" class="form-control" step="0.1" />
+                                            <label>Cuff (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Collar" class="form-control" step="0.1" />
+                                            <label>Collar (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ShoulderSlope" class="form-control" step="0.1" />
+                                            <label>Shoulder Slope (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CollarHeight" class="form-control" step="0.1" />
+                                            <label>Collar Height (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "TShirt")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Chest" class="form-control" step="0.1" />
+                                            <label>Chest (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Neck" class="form-control" step="0.1" />
+                                            <label>Neck (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ArmscyeDepth" class="form-control" step="0.1" />
+                                            <label>Armscye Depth (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Pant")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Thigh" class="form-control" step="0.1" />
+                                            <label>Thigh (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Knee" class="form-control" step="0.1" />
+                                            <label>Knee (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bottom" class="form-control" step="0.1" />
+                                            <label>Bottom (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Inseam" class="form-control" step="0.1" />
+                                            <label>Inseam (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Outseam" class="form-control" step="0.1" />
+                                            <label>Outseam (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Rise" class="form-control" step="0.1" />
+                                            <label>Rise (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Crotch" class="form-control" step="0.1" />
+                                            <label>Crotch (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.KneeWidth" class="form-control" step="0.1" />
+                                            <label>Knee Width (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.AnkleWidth" class="form-control" step="0.1" />
+                                            <label>Ankle Width (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Payjama")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Thigh" class="form-control" step="0.1" />
+                                            <label>Thigh (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bottom" class="form-control" step="0.1" />
+                                            <label>Bottom (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Knee" class="form-control" step="0.1" />
+                                            <label>Knee (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Rise" class="form-control" step="0.1" />
+                                            <label>Rise (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Crotch" class="form-control" step="0.1" />
+                                            <label>Crotch (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Inseam" class="form-control" step="0.1" />
+                                            <label>Inseam (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else if (customerGender == "Women")
+                        {
+                            @if (selectedGarmentType == "Kurti")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bust" class="form-control" step="0.1" />
+                                            <label>Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.UnderBust" class="form-control" step="0.1" />
+                                            <label>Under Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.OverBust" class="form-control" step="0.1" />
+                                            <label>Over Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Neck" class="form-control" step="0.1" />
+                                            <label>Neck (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.FrontNeckDepth" class="form-control" step="0.1" />
+                                            <label>Front Neck Depth (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.BackNeckDepth" class="form-control" step="0.1" />
+                                            <label>Back Neck Depth (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Blazer")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bust" class="form-control" step="0.1" />
+                                            <label>Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.UnderBust" class="form-control" step="0.1" />
+                                            <label>Under Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Collar" class="form-control" step="0.1" />
+                                            <label>Collar (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CollarHeight" class="form-control" step="0.1" />
+                                            <label>Collar Height (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ShoulderSlope" class="form-control" step="0.1" />
+                                            <label>Shoulder Slope (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ArmscyeDepth" class="form-control" step="0.1" />
+                                            <label>Armscye Depth (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Top")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bust" class="form-control" step="0.1" />
+                                            <label>Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.UnderBust" class="form-control" step="0.1" />
+                                            <label>Under Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Neck" class="form-control" step="0.1" />
+                                            <label>Neck (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.ArmscyeDepth" class="form-control" step="0.1" />
+                                            <label>Armscye Depth (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Frock")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bust" class="form-control" step="0.1" />
+                                            <label>Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.UnderBust" class="form-control" step="0.1" />
+                                            <label>Under Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.OverBust" class="form-control" step="0.1" />
+                                            <label>Over Bust (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Shoulder" class="form-control" step="0.1" />
+                                            <label>Shoulder (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveLength" class="form-control" step="0.1" />
+                                            <label>Sleeve Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Neck" class="form-control" step="0.1" />
+                                            <label>Neck (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Armhole" class="form-control" step="0.1" />
+                                            <label>Armhole (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.SleeveCircumference" class="form-control" step="0.1" />
+                                            <label>Sleeve Circumference (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.FrontNeckDepth" class="form-control" step="0.1" />
+                                            <label>Front Neck Depth (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.BackNeckDepth" class="form-control" step="0.1" />
+                                            <label>Back Neck Depth (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossBack" class="form-control" step="0.1" />
+                                            <label>Cross Back (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.CrossFront" class="form-control" step="0.1" />
+                                            <label>Cross Front (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (selectedGarmentType == "Payjama")
+                            {
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Waist" class="form-control" step="0.1" />
+                                            <label>Waist (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Length" class="form-control" step="0.1" />
+                                            <label>Length (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Hip" class="form-control" step="0.1" />
+                                            <label>Hip (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Thigh" class="form-control" step="0.1" />
+                                            <label>Thigh (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Bottom" class="form-control" step="0.1" />
+                                            <label>Bottom (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Knee" class="form-control" step="0.1" />
+                                            <label>Knee (inches)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Rise" class="form-control" step="0.1" />
+                                            <label>Rise (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Crotch" class="form-control" step="0.1" />
+                                            <label>Crotch (inches)</label>
+                                        </div>
+                                        <div class="form-floating mb-3">
+                                            <InputNumber @bind-Value="measurementData.Inseam" class="form-control" step="0.1" />
+                                            <label>Inseam (inches)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        <div class="alert alert-info mb-3">
+                            <strong>Validation Ranges:</strong><br>
+                            @if (customerGender == "Men")
+                            {
+                                <span>Chest: 34-52", Waist: 28-44", Hips: 34-48", Shoulder: 15-22", Sleeve: 22-27", Neck: 14-20"</span>
+                            }
+                            else
+                            {
+                                <span>Bust: 30-46", Waist: 24-40", Hips: 32-48", Shoulder: 13-19", Upper Arm: 10-16"</span>
+                            }
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelMeasurements">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Measurements</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Saved Measurements Cards -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-history me-2"></i>Saved Measurements
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (groupedMeasurements?.Any() == true)
+            {
+                <div class="row g-3">
+                    @foreach (var group in groupedMeasurements)
+                    {
+                        var cardInfo = GetGarmentCardInfo(group.Key);
+                        <div class="col-lg-3 col-md-4 col-sm-6">
+                            <div class="garment-card @cardInfo.ColorClass" @onclick="() => ShowMeasurementDetails(group.Key)">
+                                <div class="garment-icon">
+                                    <i class="fas @cardInfo.Icon"></i>
+                                </div>
+                                <h6 class="garment-title">@group.Key</h6>
+                                <p class="garment-count">@group.Value.Count measurements</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center p-4">
+                    <i class="fas fa-ruler fa-3x text-muted mb-3"></i>
+                    <h5>No measurements found</h5>
+                    <p class="text-muted">Add measurements for this customer to get started</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Modal for Measurement Details -->
+    @if (showDetailsModal)
+    {
+        <div class="modal-backdrop" @onclick="CloseDetailsModal"></div>
+        <div class="modal-dialog-custom">
+            <div class="modal-content-custom">
+                <div class="modal-header-custom">
+                    <h5>@selectedGarmentKey Measurements</h5>
+                    <button class="btn-close-custom" @onclick="CloseDetailsModal">&times;</button>
+                </div>
+                <div class="modal-body-custom">
+                    @if (selectedMeasurements?.Any() == true)
+                    {
+                        <div class="measurements-grid">
+                            @foreach (var m in selectedMeasurements)
+                            {
+                                <div class="measurement-item">
+                                    <span class="measurement-label">@m.MeasurementType</span>
+                                    <span class="measurement-value">@m.MeasurementValue @m.Unit</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer-custom">
+                    <button class="btn btn-success" @onclick="EditGarmentMeasurements">
+                        <i class="fas fa-edit me-2"></i>Edit
+                    </button>
+                    <button class="btn btn-danger" @onclick="DeleteGarmentMeasurements">
+                        <i class="fas fa-trash me-2"></i>Delete All
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+<style>
+    .measurement-container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 12px;
+        display: inline-block;
+    }
+
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px 20px 0 0 !important;
+        padding: 2rem;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1.4rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .card-body {
+        padding: 2rem;
+        position: relative;
+    }
+
+    .form-floating > .form-select,
+    .form-floating > .form-control {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        padding: 1rem 1.25rem;
+        background: white;
+        height: 3.5rem;
+    }
+
+    .form-floating > label {
+        color: #6b7280;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        letter-spacing: 0.5px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+        color: white;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+    }
+
+    .btn-danger {
+        border-radius: 12px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-success {
+        border-radius: 12px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+    }
+
+    .measurement-form {
+        background: rgba(99, 102, 241, 0.02);
+        border-radius: 16px;
+        padding: 2rem;
+        border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .measurement-form h6 {
+        color: #1f2937;
+        font-weight: 800;
+        font-size: 1.3rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .measurement-card {
+        background: white;
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .measurement-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .measurement-header h6 {
+        color: #1f2937;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .measurement-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+        animation: fadeIn 0.3s ease;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-dialog-custom {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1001;
+        width: 90%;
+        max-width: 900px;
+        animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @@keyframes slideUp {
+        from { transform: translate(-50%, -40%); opacity: 0; }
+        to { transform: translate(-50%, -50%); opacity: 1; }
+    }
+
+    .modal-content-custom {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+
+    .modal-header-custom {
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header-custom h5 {
+        margin: 0;
+        font-weight: 800;
+        font-size: 1.5rem;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-close-custom {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        font-size: 1.5rem;
+        color: white;
+        cursor: pointer;
+        line-height: 1;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close-custom:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .modal-body-custom {
+        padding: 1.5rem;
+        max-height: 50vh;
+        overflow-y: auto;
+        background: #f8fafc;
+    }
+
+    .modal-body-custom::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal-body-custom::-webkit-scrollbar-track {
+        background: #e5e7eb;
+        border-radius: 10px;
+    }
+
+    .modal-body-custom::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+
+    .modal-footer-custom {
+        padding: 1.5rem 2rem;
+        background: white;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .measurements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.875rem;
+    }
+
+    .measurement-item {
+        padding: 0.875rem 1rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+
+    .measurement-item:hover {
+        border-color: #667eea;
+        box-shadow: 0 3px 12px rgba(102, 126, 234, 0.12);
+        transform: translateY(-1px);
+    }
+
+    .measurement-label {
+        display: block;
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.375rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .measurement-value {
+        display: block;
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #667eea;
+        letter-spacing: -0.3px;
+    }
+    
+    .table {
+        background: white;
+    }
+    
+    .table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .table thead th {
+        border: none;
+        font-weight: 700;
+        padding: 1rem;
+    }
+    
+    .table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .measurement-value-text {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .garment-card {
+        border-radius: 12px;
+        padding: 1.25rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        color: white;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .garment-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.1);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    .garment-card:hover::before {
+        opacity: 1;
+    }
+
+    .garment-card:hover {
+        transform: translateY(-4px) scale(1.01);
+    }
+
+    .card-kurta { background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%); box-shadow: 0 10px 40px rgba(94, 114, 228, 0.35); }
+    .card-kurta:hover { box-shadow: 0 20px 60px rgba(94, 114, 228, 0.5); }
+    
+    .card-shirt { background: linear-gradient(135deg, #11cdef 0%, #1171ef 100%); box-shadow: 0 10px 40px rgba(17, 205, 239, 0.35); }
+    .card-shirt:hover { box-shadow: 0 20px 60px rgba(17, 205, 239, 0.5); }
+    
+    .card-tshirt { background: linear-gradient(135deg, #2dce89 0%, #2dcecc 100%); box-shadow: 0 10px 40px rgba(45, 206, 137, 0.35); }
+    .card-tshirt:hover { box-shadow: 0 20px 60px rgba(45, 206, 137, 0.5); }
+    
+    .card-pant { background: linear-gradient(135deg, #fb6340 0%, #fbb140 100%); box-shadow: 0 10px 40px rgba(251, 99, 64, 0.35); }
+    .card-pant:hover { box-shadow: 0 20px 60px rgba(251, 99, 64, 0.5); }
+    
+    .card-payjama { background: linear-gradient(135deg, #f5365c 0%, #f56036 100%); box-shadow: 0 10px 40px rgba(245, 54, 92, 0.35); }
+    .card-payjama:hover { box-shadow: 0 20px 60px rgba(245, 54, 92, 0.5); }
+    
+    .card-kurti { background: linear-gradient(135deg, #e91e63 0%, #9c27b0 100%); box-shadow: 0 10px 40px rgba(233, 30, 99, 0.35); }
+    .card-kurti:hover { box-shadow: 0 20px 60px rgba(233, 30, 99, 0.5); }
+    
+    .card-blazer { background: linear-gradient(135deg, #673ab7 0%, #3f51b5 100%); box-shadow: 0 10px 40px rgba(103, 58, 183, 0.35); }
+    .card-blazer:hover { box-shadow: 0 20px 60px rgba(103, 58, 183, 0.5); }
+    
+    .card-top { background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); box-shadow: 0 10px 40px rgba(255, 152, 0, 0.35); }
+    .card-top:hover { box-shadow: 0 20px 60px rgba(255, 152, 0, 0.5); }
+    
+    .card-frock { background: linear-gradient(135deg, #ec407a 0%, #ab47bc 100%); box-shadow: 0 10px 40px rgba(236, 64, 122, 0.35); }
+    .card-frock:hover { box-shadow: 0 20px 60px rgba(236, 64, 122, 0.5); }
+
+    .garment-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.95;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+
+    .garment-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        line-height: 1.2;
+    }
+
+    .garment-count {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        margin: 0;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+    }
+</style>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+    
+    private string customerName = "Customer";
+    private string customerGender = string.Empty;
+    private string selectedGarmentType = string.Empty;
+    private bool showMeasurementForm = false;
+    private List<CustomerMeasurement> allMeasurements = new();
+    private Dictionary<string, List<CustomerMeasurement>> groupedMeasurements = new();
+    private bool showDetailsModal = false;
+    private string selectedGarmentKey = string.Empty;
+    private List<CustomerMeasurement> selectedMeasurements = new();
+
+    private MeasurementData measurementData = new();
+    private Dictionary<string, string> validationErrors = new();
+    private Dictionary<string, bool> fieldValidationStates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomerData();
+        await LoadSavedMeasurements();
+    }
+
+    private async Task LoadCustomerData()
+    {
+        try
+        {
+            var customer = await CustomerService.GetCustomerByIdAsync(CustomerId);
+            customerName = customer?.CustomerName ?? $"Customer #{CustomerId}";
+            customerGender = customer?.Gender ?? "Men";
+        }
+        catch
+        {
+            customerName = $"Customer #{CustomerId}";
+            customerGender = "Men";
+        }
+    }
+
+    private async Task LoadSavedMeasurements()
+    {
+        try
+        {
+            Console.WriteLine($"Loading measurements for customer {CustomerId}");
+            allMeasurements = await MeasurementService.GetCustomerMeasurementsAsync(CustomerId);
+            Console.WriteLine($"Loaded {allMeasurements?.Count ?? 0} measurements");
+            
+            groupedMeasurements = allMeasurements?
+                .Where(m => !string.IsNullOrEmpty(m.GarmentType))
+                .GroupBy(m => $"{(m.Gender == "M" ? "Men" : "Women")} {m.GarmentType}")
+                .ToDictionary(g => g.Key, g => g.ToList()) ?? new Dictionary<string, List<CustomerMeasurement>>();
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading measurements: {ex.Message}");
+            allMeasurements = new List<CustomerMeasurement>();
+            groupedMeasurements = new Dictionary<string, List<CustomerMeasurement>>();
+        }
+    }
+
+
+
+    private async Task SaveMeasurements()
+    {
+        try
+        {
+            var gender = customerGender == "Men" ? "M" : "F";
+            var measurements = GetAllMeasurementsToSave(gender);
+            
+            Console.WriteLine($"DEBUG: Saving measurements for Customer {CustomerId}, Gender {gender}, Garment {selectedGarmentType}");
+            Console.WriteLine($"DEBUG: Found {measurements.Count} measurements to save");
+            
+            // First, delete existing measurements for this customer and garment type
+            var existingMeasurements = allMeasurements
+                .Where(m => m.CustomerId == CustomerId && 
+                           m.Gender == gender && 
+                           m.GarmentType == selectedGarmentType)
+                .ToList();
+            
+            Console.WriteLine($"DEBUG: Found {existingMeasurements.Count} existing measurements to delete");
+            
+            foreach (var existing in existingMeasurements)
+            {
+                Console.WriteLine($"DEBUG: Deleting measurement ID {existing.MeasurementId} - {existing.MeasurementType}");
+                var deleteResult = await MeasurementService.DeleteMeasurementAsync(existing.MeasurementId);
+                Console.WriteLine($"DEBUG: Delete result: {deleteResult}");
+            }
+            
+            // Then create new measurements
+            int savedCount = 0;
+            foreach (var (type, value) in measurements)
+            {
+                if (value > 0)
+                {
+                    Console.WriteLine($"DEBUG: Creating measurement {type} = {value}");
+                    var measurement = new CustomerMeasurement
+                    {
+                        CustomerId = CustomerId,
+                        Gender = gender,
+                        GarmentType = selectedGarmentType,
+                        MeasurementType = type,
+                        MeasurementValue = (decimal)value,
+                        Unit = "inches",
+                        CreatedDate = DateTime.UtcNow
+                    };
+                    
+                    var success = await MeasurementService.CreateMeasurementAsync(measurement);
+                    Console.WriteLine($"DEBUG: Create result for {type}: {success}");
+                    if (success) savedCount++;
+                }
+            }
+            
+            Console.WriteLine($"DEBUG: Successfully saved {savedCount} measurements for {selectedGarmentType}");
+            showMeasurementForm = false;
+            measurementData = new MeasurementData();
+            await LoadSavedMeasurements();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR saving measurements: {ex.Message}");
+            Console.WriteLine($"ERROR stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private async Task ValidateField(string gender, string measurementType, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var value) && value > 0)
+        {
+            var result = await MeasurementService.ValidateMeasurementAsync(gender, measurementType, value);
+            
+            if (!result.IsValid)
+            {
+                validationErrors[measurementType] = result.Message;
+            }
+            else
+            {
+                validationErrors.Remove(measurementType);
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+    private string GetValidationClass(string gender, string measurementType, decimal value)
+    {
+        return validationErrors.ContainsKey(measurementType) ? "is-invalid" : "";
+    }
+
+    private async Task ValidateAllMeasurements()
+    {
+        validationErrors.Clear();
+        var gender = customerGender == "Men" ? "M" : "F";
+        var measurements = GetAllMeasurementsToSave(gender);
+        
+        foreach (var (type, value) in measurements)
+        {
+            if (value > 0)
+            {
+                var result = await MeasurementService.ValidateMeasurementAsync(gender, type, (decimal)value);
+                if (!result.IsValid)
+                {
+                    validationErrors[type] = result.Message;
+                }
+            }
+        }
+    }
+
+    private List<(string type, double value)> GetAllMeasurementsToSave(string gender)
+    {
+        var measurements = new List<(string, double)>();
+        
+        // Add ALL measurements that have values
+        if (measurementData.Chest > 0) measurements.Add(("Chest", measurementData.Chest));
+        if (measurementData.Bust > 0) measurements.Add(("Bust", measurementData.Bust));
+        if (measurementData.Waist > 0) measurements.Add(("Waist", measurementData.Waist));
+        if (measurementData.Hip > 0) measurements.Add(("Hip", measurementData.Hip));
+        if (measurementData.Shoulder > 0) measurements.Add(("Shoulder", measurementData.Shoulder));
+        if (measurementData.SleeveLength > 0) measurements.Add(("Sleeve Length", measurementData.SleeveLength));
+        if (measurementData.Neck > 0) measurements.Add(("Neck", measurementData.Neck));
+        if (measurementData.Armhole > 0) measurements.Add(("Armhole", measurementData.Armhole));
+        if (measurementData.Length > 0) measurements.Add(("Length", measurementData.Length));
+        if (measurementData.SleeveCircumference > 0) measurements.Add(("Sleeve Circumference", measurementData.SleeveCircumference));
+        if (measurementData.FrontNeckDepth > 0) measurements.Add(("Front Neck Depth", measurementData.FrontNeckDepth));
+        if (measurementData.BackNeckDepth > 0) measurements.Add(("Back Neck Depth", measurementData.BackNeckDepth));
+        if (measurementData.CrossBack > 0) measurements.Add(("Cross Back", measurementData.CrossBack));
+        if (measurementData.CrossFront > 0) measurements.Add(("Cross Front", measurementData.CrossFront));
+        if (measurementData.ShoulderSlope > 0) measurements.Add(("Shoulder Slope", measurementData.ShoulderSlope));
+        if (measurementData.SideSeam > 0) measurements.Add(("Side Seam", measurementData.SideSeam));
+        if (measurementData.Cuff > 0) measurements.Add(("Cuff", measurementData.Cuff));
+        if (measurementData.Collar > 0) measurements.Add(("Collar", measurementData.Collar));
+        if (measurementData.CollarHeight > 0) measurements.Add(("Collar Height", measurementData.CollarHeight));
+        if (measurementData.UnderBust > 0) measurements.Add(("Under Bust", measurementData.UnderBust));
+        if (measurementData.OverBust > 0) measurements.Add(("Over Bust", measurementData.OverBust));
+        if (measurementData.Thigh > 0) measurements.Add(("Thigh", measurementData.Thigh));
+        if (measurementData.Knee > 0) measurements.Add(("Knee", measurementData.Knee));
+        if (measurementData.Bottom > 0) measurements.Add(("Bottom", measurementData.Bottom));
+        if (measurementData.Inseam > 0) measurements.Add(("Inseam", measurementData.Inseam));
+        if (measurementData.Outseam > 0) measurements.Add(("Outseam", measurementData.Outseam));
+        if (measurementData.Rise > 0) measurements.Add(("Rise", measurementData.Rise));
+        if (measurementData.Crotch > 0) measurements.Add(("Crotch", measurementData.Crotch));
+        if (measurementData.KneeWidth > 0) measurements.Add(("Knee Width", measurementData.KneeWidth));
+        if (measurementData.AnkleWidth > 0) measurements.Add(("Ankle Width", measurementData.AnkleWidth));
+        if (measurementData.ArmscyeDepth > 0) measurements.Add(("Armscye Depth", measurementData.ArmscyeDepth));
+        
+        return measurements;
+    }
+
+    private void OnValidationChanged(bool isValid)
+    {
+        var fieldKey = "validation";
+        fieldValidationStates[fieldKey] = isValid;
+        StateHasChanged();
+    }
+
+    private void CancelMeasurements()
+    {
+        showMeasurementForm = false;
+        fieldValidationStates.Clear();
+    }
+
+    private void ShowMeasurementForm()
+    {
+        showMeasurementForm = true;
+        measurementData = new MeasurementData();
+        fieldValidationStates.Clear();
+    }
+
+
+
+    private void ShowMeasurementDetails(string garmentKey)
+    {
+        selectedGarmentKey = garmentKey;
+        selectedMeasurements = groupedMeasurements[garmentKey];
+        showDetailsModal = true;
+    }
+    
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedGarmentKey = string.Empty;
+        selectedMeasurements = new List<CustomerMeasurement>();
+    }
+    
+    private async Task DeleteGarmentMeasurements()
+    {
+        try
+        {
+            foreach (var m in selectedMeasurements)
+            {
+                await MeasurementService.DeleteMeasurementAsync(m.MeasurementId);
+            }
+            CloseDetailsModal();
+            await LoadSavedMeasurements();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting measurements: {ex.Message}");
+        }
+    }
+
+    private void EditGarmentMeasurements()
+    {
+        // Extract garment type from selected key (e.g., "Men Kurta" -> "Kurta")
+        var parts = selectedGarmentKey.Split(' ');
+        if (parts.Length >= 2)
+        {
+            // Category is already set from customer data
+            selectedGarmentType = parts[1]; // "Kurta", "Shirt", etc.
+            
+            // Load existing measurements into form
+            measurementData = new MeasurementData();
+            foreach (var m in selectedMeasurements)
+            {
+                switch (m.MeasurementType)
+                {
+                    case "Chest": measurementData.Chest = (double)m.MeasurementValue; break;
+                    case "Bust": measurementData.Bust = (double)m.MeasurementValue; break;
+                    case "Waist": measurementData.Waist = (double)m.MeasurementValue; break;
+                    case "Hip": measurementData.Hip = (double)m.MeasurementValue; break;
+                    case "Shoulder": measurementData.Shoulder = (double)m.MeasurementValue; break;
+                    case "Sleeve Length": measurementData.SleeveLength = (double)m.MeasurementValue; break;
+                    case "Neck": measurementData.Neck = (double)m.MeasurementValue; break;
+                    case "Armhole": measurementData.Armhole = (double)m.MeasurementValue; break;
+                    case "Length": measurementData.Length = (double)m.MeasurementValue; break;
+                    case "Sleeve Circumference": measurementData.SleeveCircumference = (double)m.MeasurementValue; break;
+                    case "Front Neck Depth": measurementData.FrontNeckDepth = (double)m.MeasurementValue; break;
+                    case "Back Neck Depth": measurementData.BackNeckDepth = (double)m.MeasurementValue; break;
+                    case "Cross Back": measurementData.CrossBack = (double)m.MeasurementValue; break;
+                    case "Cross Front": measurementData.CrossFront = (double)m.MeasurementValue; break;
+                    case "Shoulder Slope": measurementData.ShoulderSlope = (double)m.MeasurementValue; break;
+                    case "Side Seam": measurementData.SideSeam = (double)m.MeasurementValue; break;
+                    case "Cuff": measurementData.Cuff = (double)m.MeasurementValue; break;
+                    case "Collar": measurementData.Collar = (double)m.MeasurementValue; break;
+                    case "Collar Height": measurementData.CollarHeight = (double)m.MeasurementValue; break;
+                    case "Under Bust": measurementData.UnderBust = (double)m.MeasurementValue; break;
+                    case "Over Bust": measurementData.OverBust = (double)m.MeasurementValue; break;
+                    case "Thigh": measurementData.Thigh = (double)m.MeasurementValue; break;
+                    case "Knee": measurementData.Knee = (double)m.MeasurementValue; break;
+                    case "Bottom": measurementData.Bottom = (double)m.MeasurementValue; break;
+                    case "Inseam": measurementData.Inseam = (double)m.MeasurementValue; break;
+                    case "Outseam": measurementData.Outseam = (double)m.MeasurementValue; break;
+                    case "Rise": measurementData.Rise = (double)m.MeasurementValue; break;
+                    case "Crotch": measurementData.Crotch = (double)m.MeasurementValue; break;
+                    case "Knee Width": measurementData.KneeWidth = (double)m.MeasurementValue; break;
+                    case "Ankle Width": measurementData.AnkleWidth = (double)m.MeasurementValue; break;
+                    case "Armscye Depth": measurementData.ArmscyeDepth = (double)m.MeasurementValue; break;
+                }
+            }
+            
+            CloseDetailsModal();
+            showMeasurementForm = true;
+        }
+    }
+    
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/customer-management");
+    }
+
+    private (string Icon, string ColorClass) GetGarmentCardInfo(string garmentKey)
+    {
+        if (garmentKey.Contains("Kurta")) return ("fa-user-tie", "card-kurta");
+        if (garmentKey.Contains("Shirt")) return ("fa-shirt", "card-shirt");
+        if (garmentKey.Contains("TShirt") || garmentKey.Contains("T-Shirt")) return ("fa-tshirt", "card-tshirt");
+        if (garmentKey.Contains("Pant")) return ("fa-person", "card-pant");
+        if (garmentKey.Contains("Payjama")) return ("fa-person-dress", "card-payjama");
+        if (garmentKey.Contains("Kurti")) return ("fa-vest", "card-kurti");
+        if (garmentKey.Contains("Blazer")) return ("fa-user-tie", "card-blazer");
+        if (garmentKey.Contains("Top")) return ("fa-shirt", "card-top");
+        if (garmentKey.Contains("Frock")) return ("fa-dress", "card-frock");
+        return ("fa-tshirt", "card-kurta");
+    }
+
+    public class MeasurementData
+    {
+        // Common measurements
+        public double Length { get; set; }
+        public double Shoulder { get; set; }
+        public double SleeveLength { get; set; }
+        public double Waist { get; set; }
+        public double Hip { get; set; }
+        public double Neck { get; set; }
+        public double Armhole { get; set; }
+        
+        // Men's measurements
+        public double Chest { get; set; }
+        public double Cuff { get; set; }
+        public double Collar { get; set; }
+        public double CollarHeight { get; set; }
+        
+        // Women's measurements
+        public double Bust { get; set; }
+        public double UnderBust { get; set; }
+        public double OverBust { get; set; }
+        
+        // Bottom wear measurements
+        public double Thigh { get; set; }
+        public double Knee { get; set; }
+        public double Bottom { get; set; }
+        public double Inseam { get; set; }
+        public double Outseam { get; set; }
+        public double Rise { get; set; }
+        public double Crotch { get; set; }
+        public double KneeWidth { get; set; }
+        public double AnkleWidth { get; set; }
+        
+        // Advanced measurements
+        public double SleeveCircumference { get; set; }
+        public double FrontNeckDepth { get; set; }
+        public double BackNeckDepth { get; set; }
+        public double CrossBack { get; set; }
+        public double CrossFront { get; set; }
+        public double ShoulderSlope { get; set; }
+        public double SideSeam { get; set; }
+        public double ArmscyeDepth { get; set; }
+    }
+}

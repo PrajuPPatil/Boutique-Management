@@ -1,0 +1,104 @@
+@using Boutique.Client.Services
+@inject AnalyticsService AnalyticsService
+@inject IJSRuntime JSRuntime
+
+<div class="chart-container">
+    <div class="chart-header">
+        <h5 class="chart-title">Customer Analytics</h5>
+    </div>
+    <div class="chart-wrapper">
+        <canvas id="customerChart" width="400" height="300"></canvas>
+    </div>
+</div>
+
+<style>
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid #e2e8f0;
+    }
+
+    .chart-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-title {
+        margin: 0;
+        color: #1f2937;
+        font-weight: 600;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 300px;
+    }
+</style>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadChart();
+        }
+    }
+
+    private async Task LoadChart()
+    {
+        try
+        {
+            var customerData = await AnalyticsService.GetCustomerAnalyticsAsync();
+            
+            await JSRuntime.InvokeVoidAsync("createCustomerChart", new
+            {
+                labels = customerData.CustomersByGender.Keys.ToArray(),
+                data = customerData.CustomersByGender.Values.ToArray()
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading customer chart: {ex.Message}");
+            // Fallback data
+            await JSRuntime.InvokeVoidAsync("createCustomerChart", new
+            {
+                labels = new[] { "Men", "Women" },
+                data = new[] { 18, 14 }
+            });
+        }
+    }
+}
+
+<script>
+    window.createCustomerChart = (data) => {
+        const ctx = document.getElementById('customerChart');
+        if (!ctx) return;
+
+        if (window.customerChartInstance) {
+            window.customerChartInstance.destroy();
+        }
+
+        window.customerChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    data: data.data,
+                    backgroundColor: ['#667eea', '#764ba2', '#48bb78', '#ed8936'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    };
+</script>

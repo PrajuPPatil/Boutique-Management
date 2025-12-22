@@ -1,0 +1,129 @@
+@page "/test-measurements"
+@inject Boutique.Client.Services.CustomerMeasurementService MeasurementService
+@using Boutique.Client.Models
+
+<h3>Test Measurements API</h3>
+
+<div class="card p-4">
+    <h5>Add Test Measurement</h5>
+    <div class="mb-3">
+        <label>Customer ID:</label>
+        <input type="number" class="form-control" @bind="testCustomerId" />
+    </div>
+    <div class="mb-3">
+        <label>Gender:</label>
+        <select class="form-control" @bind="testGender">
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Type:</label>
+        <input type="text" class="form-control" @bind="testType" placeholder="Chest, Waist, etc." />
+    </div>
+    <div class="mb-3">
+        <label>Value:</label>
+        <input type="number" step="0.1" class="form-control" @bind="testValue" />
+    </div>
+    <button class="btn btn-primary" @onclick="TestAdd">Test Add</button>
+    <button class="btn btn-secondary ms-2" @onclick="TestLoad">Test Load</button>
+</div>
+
+<div class="card p-4 mt-4">
+    <h5>Results:</h5>
+    <pre>@result</pre>
+</div>
+
+<div class="card p-4 mt-4">
+    <h5>Loaded Measurements:</h5>
+    @if (loadedMeasurements?.Any() == true)
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Gender</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in loadedMeasurements)
+                {
+                    <tr>
+                        <td>@m.MeasurementId</td>
+                        <td>@m.Gender</td>
+                        <td>@m.MeasurementType</td>
+                        <td>@m.MeasurementValue</td>
+                        <td>@m.Unit</td>
+                        <td>@m.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No measurements loaded</p>
+    }
+</div>
+
+@code {
+    private int testCustomerId = 1;
+    private string testGender = "M";
+    private string testType = "Chest";
+    private decimal testValue = 40;
+    private string result = "";
+    private List<CustomerMeasurement> loadedMeasurements = new();
+
+    private async Task TestAdd()
+    {
+        try
+        {
+            result = "Testing add...\n";
+            
+            var measurement = new CustomerMeasurement
+            {
+                CustomerId = testCustomerId,
+                Gender = testGender,
+                MeasurementType = testType,
+                MeasurementValue = testValue,
+                Unit = "inches",
+                CreatedDate = DateTime.UtcNow
+            };
+
+            result += $"Sending: CustomerId={measurement.CustomerId}, Gender={measurement.Gender}, Type={measurement.MeasurementType}, Value={measurement.MeasurementValue}\n";
+
+            var success = await MeasurementService.CreateMeasurementAsync(measurement);
+
+            result += $"Result: {(success ? "SUCCESS" : "FAILED")}\n";
+            
+            if (success)
+            {
+                result += "Measurement saved to database!\n";
+                await TestLoad();
+            }
+        }
+        catch (Exception ex)
+        {
+            result += $"ERROR: {ex.Message}\n{ex.StackTrace}";
+        }
+    }
+
+    private async Task TestLoad()
+    {
+        try
+        {
+            result = "Loading measurements...\n";
+            loadedMeasurements = await MeasurementService.GetCustomerMeasurementsAsync(testCustomerId);
+            result += $"Loaded {loadedMeasurements.Count} measurements\n";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            result += $"ERROR: {ex.Message}\n";
+        }
+    }
+}

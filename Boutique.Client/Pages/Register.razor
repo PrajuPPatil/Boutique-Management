@@ -1,0 +1,464 @@
+@page "/register"
+@using Boutique.Client.Models.DTOs.Authentication
+@inject Boutique.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
+@layout EmptyLayout
+
+<div class="register-container">
+    <div class="container-fluid">
+        <div class="row min-vh-100">
+            <!-- Left Side - Branding -->
+            <div class="col-lg-6 d-none d-lg-flex brand-section">
+                <div class="brand-content">
+                    <div class="brand-header">
+                        <i class="fas fa-cut brand-icon"></i>
+                        <h1 class="brand-title">Boutique Manager</h1>
+                        <p class="brand-subtitle">Transform your fashion business with our comprehensive management platform</p>
+                    </div>
+                    
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-users"></i>
+                            <span>Customer Management</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-ruler"></i>
+                            <span>Measurement Tracking</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Business Analytics</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Secure & Reliable</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side - Registration Form -->
+            <div class="col-lg-6 col-12 form-section">
+                <div class="form-container">
+                    <div class="form-header">
+                        <h2>Create Account</h2>
+                        <p>Join thousands of boutique owners worldwide</p>
+                    </div>
+
+                    <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(registerError))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                @registerError
+                                @if (registerError.Contains("Email domain not found"))
+                                {
+                                    <div class="mt-2">
+                                        <small><strong>Tip:</strong> Please check your email spelling or try a different email provider.</small>
+                                    </div>
+                                }
+                                <button type="button" class="btn-close" @onclick="() => registerError = string.Empty"></button>
+                            </div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                @successMessage
+                                <div class="mt-2">
+                                    <small>Redirecting to email verification...</small>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <InputText @bind-Value="registerModel.Username" class="form-control" id="username" placeholder="Enter your username" />
+                            <ValidationMessage For="@(() => registerModel.Username)" class="field-validation-error" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <InputText @bind-Value="registerModel.Email" @onblur="ValidateEmailFormat" class="form-control" id="email" placeholder="Enter your email" />
+                            <ValidationMessage For="@(() => registerModel.Email)" class="field-validation-error" />
+                            @if (!string.IsNullOrEmpty(emailWarning))
+                            {
+                                <div class="text-danger mt-1">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <small>@emailWarning</small>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <InputText type="password" @bind-Value="registerModel.Password" class="form-control" id="password" placeholder="Create a password" />
+                            <ValidationMessage For="@(() => registerModel.Password)" class="field-validation-error" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm Password</label>
+                            <InputText type="password" @bind-Value="registerModel.ConfirmPassword" class="form-control" id="confirmPassword" placeholder="Confirm your password" />
+                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="field-validation-error" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Creating Account...</span>
+                            }
+                            else
+                            {
+                                <span>Create Account</span>
+                            }
+                        </button>
+
+                        <div class="form-footer">
+                            <p>Already have an account? <NavLink href="login">Sign In</NavLink></p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .register-container {
+        min-height: calc(100vh - 200px);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        align-items: center;
+    }
+
+    .brand-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .brand-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></svg>') repeat;
+    }
+
+    .brand-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        max-width: 400px;
+        padding: 2rem;
+    }
+
+    .brand-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.9;
+    }
+
+    .brand-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 3rem;
+        line-height: 1.6;
+    }
+
+    .features {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .feature {
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+
+    .feature i {
+        font-size: 1.2rem;
+        margin-right: 1rem;
+        width: 24px;
+        text-align: center;
+    }
+
+    .form-section {
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .form-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .form-header h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+        color: #718096;
+        font-size: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .field-validation-error {
+        color: #dc2626;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .alert-danger {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        background: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.125em;
+    }
+
+    .form-footer {
+        text-align: center;
+    }
+
+    .form-footer p {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .form-footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .form-footer a:hover {
+        text-decoration: underline;
+    }
+
+    @@media (max-width: 991.98px) {
+        .register-container {
+            background: white;
+            min-height: calc(100vh - 150px);
+        }
+        
+        .form-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .form-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .row.min-vh-100 {
+            min-height: auto;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .register-container {
+            min-height: calc(100vh - 120px);
+            padding: 1rem 0;
+        }
+        
+        .form-container {
+            padding: 1.5rem;
+            margin: 1rem;
+        }
+        
+        .form-header h2 {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+
+@code {
+    private RegisterDTO registerModel = new();
+    private string registerError = string.Empty;
+    private string successMessage = string.Empty;
+    private string emailWarning = string.Empty;
+    private bool isLoading = false;
+
+
+    
+    private async Task HandleRegister()
+    {
+        if (isLoading) return;
+        
+        isLoading = true;
+        registerError = string.Empty;
+        successMessage = string.Empty;
+        
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel);
+            successMessage = result;
+            
+            // Navigate to OTP verification after a short delay to show success message
+            await Task.Delay(2000);
+            Navigation.NavigateTo($"/verify-otp?email={Uri.EscapeDataString(registerModel.Email)}");
+        }
+        catch (HttpRequestException ex)
+        {
+            // Extract user-friendly error message from the exception
+            registerError = ex.Message;
+        }
+        catch (TaskCanceledException)
+        {
+            registerError = "Request timed out. Please check your internet connection and try again.";
+        }
+        catch (Exception ex)
+        {
+            registerError = "An unexpected error occurred. Please try again later.";
+            // Log the actual error for debugging (in a real app, you'd use proper logging)
+            Console.WriteLine($"Registration error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private void ValidateEmailFormat()
+    {
+        emailWarning = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(registerModel.Email))
+            return;
+            
+        // Only validate format, not DNS
+        if (!IsValidEmailFormat(registerModel.Email))
+        {
+            emailWarning = "Please enter a valid email address";
+        }
+    }
+    
+    private bool IsValidEmailFormat(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+            
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return addr.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}

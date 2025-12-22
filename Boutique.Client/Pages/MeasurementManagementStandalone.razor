@@ -1,0 +1,244 @@
+@page "/measurements-manage"
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.CustomerMeasurementService MeasurementService
+@inject IJSRuntime JSRuntime
+@using Boutique.Client.Models
+@using Microsoft.JSInterop
+
+<div class="measurement-container">
+    <div class="page-header">
+        <h1><i class="fas fa-ruler me-3"></i>Measurement Management</h1>
+        <button class="btn btn-primary" @onclick="ShowAddModal">
+            <i class="fas fa-plus me-2"></i>Add Measurement
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (measurements == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!measurements.Any())
+    {
+        <div class="empty-state">
+            <i class="fas fa-ruler fa-4x"></i>
+            <h3>No Measurements Found</h3>
+            <p>Start by adding your first measurement</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Gender</th>
+                        <th>Type</th>
+                        <th>Measurements</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in measurements)
+                    {
+                        <tr>
+                            <td>@(customers.FirstOrDefault(c => c.CustomerId == m.CustomerId)?.CustomerName ?? "Unknown")</td>
+                            <td><span class="badge bg-info">@(m.Gender == "M" ? "Men" : "Women")</span></td>
+                            <td>@m.GarmentType</td>
+                            <td>
+                                <small>@m.MeasurementType: @m.MeasurementValue @m.Unit</small>
+                            </td>
+                            <td>@m.CreatedDate.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteMeasurement(m.MeasurementId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5><i class="fas fa-plus me-2"></i>Add Measurement</h5>
+                    <button class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="measurementModel" OnValidSubmit="SaveMeasurement">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(modalError))
+                        {
+                            <div class="alert alert-danger">@modalError</div>
+                        }
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Customer</label>
+                                <select @bind="measurementModel.CustomerId" class="form-select">
+                                    <option value="0">Select Customer</option>
+                                    @foreach (var c in customers)
+                                    {
+                                        <option value="@c.CustomerId">@c.CustomerName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Gender</label>
+                                <select @bind="measurementModel.Gender" class="form-select">
+                                    <option value="M">Men</option>
+                                    <option value="F">Women</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Garment Type</label>
+                                <select @bind="measurementModel.GarmentType" class="form-select">
+                                    <option value="Kurta">Kurta</option>
+                                    <option value="Shirt">Shirt</option>
+                                    <option value="Pant">Pant</option>
+                                    <option value="Blazer">Blazer</option>
+                                    <option value="Dress">Dress</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Measurement Type</label>
+                                <select @bind="measurementModel.MeasurementType" class="form-select">
+                                    <option value="Chest">Chest</option>
+                                    <option value="Waist">Waist</option>
+                                    <option value="Hip">Hip</option>
+                                    <option value="Shoulder">Shoulder</option>
+                                    <option value="Length">Length</option>
+                                    <option value="Sleeve">Sleeve</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Value</label>
+                                <input @bind="measurementModel.MeasurementValue" type="number" step="0.1" class="form-control" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Unit</label>
+                                <select @bind="measurementModel.Unit" class="form-select">
+                                    <option value="inches">Inches</option>
+                                    <option value="cm">Centimeters</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                Save
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .measurement-container { padding: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; margin: 0; }
+    .empty-state { text-align: center; padding: 4rem; color: #6c757d; }
+    .table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .table th { background: #f8f9fa; font-weight: 600; }
+    .btn-sm { margin-right: 0.5rem; }
+    .modal-content { border-radius: 16px; }
+    .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+</style>
+
+@code {
+    private List<CustomerMeasurement>? measurements;
+    private List<CustomerDto> customers = new();
+    private CustomerMeasurement measurementModel = new();
+    private bool showModal = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? modalError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            customers = await CustomerService.GetCustomersAsync() ?? new();
+            measurements = await MeasurementService.GetAllMeasurementsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        measurementModel = new CustomerMeasurement { Gender = "M", GarmentType = "Kurta", Unit = "inches" };
+        modalError = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        measurementModel = new();
+    }
+
+    private async Task SaveMeasurement()
+    {
+        isSaving = true;
+        modalError = null;
+        
+        try
+        {
+            var success = await MeasurementService.CreateMeasurementAsync(measurementModel);
+            if (!success) throw new Exception("Failed to create measurement");
+            
+            await LoadData();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            modalError = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteMeasurement(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Delete this measurement?"))
+        {
+            var success = await MeasurementService.DeleteMeasurementAsync(id);
+            if (success) await LoadData();
+        }
+    }
+}

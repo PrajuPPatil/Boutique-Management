@@ -1,0 +1,37 @@
+@* Main App Component - Root component for Boutique Management System *@
+@* Handles routing, authentication, and layout management *@
+
+@* Cascading authentication state provides auth context to all child components *@
+<CascadingAuthenticationState>
+    @* Router component handles navigation and route matching *@
+    <Router AppAssembly="@typeof(App).Assembly">
+        @* When route is found, render with authorization *@
+        <Found Context="routeData">
+            @* Authorize route view checks user permissions for each page *@
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                @* Handle unauthorized access attempts *@
+                <NotAuthorized>
+                    @* Redirect unauthenticated users to login *@
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        @* Show message for authenticated but unauthorized users *@
+                        <p role="alert">You are not authorized to access this resource.</p>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            @* Focus management for accessibility *@
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        @* Handle 404 - Page not found *@
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

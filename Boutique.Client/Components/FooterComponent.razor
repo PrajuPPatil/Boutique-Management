@@ -1,0 +1,231 @@
+<footer class="site-footer">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="footer-brand">
+                    <i class="fas fa-cut me-2"></i>
+                    <span>Boutique Manager</span>
+                </div>
+                <p class="footer-desc">Professional boutique management solution for modern fashion businesses.</p>
+            </div>
+            
+            <div class="col-lg-2 col-md-3 col-6 mb-3">
+                <h6 class="footer-title">Features</h6>
+                <ul class="footer-links">
+                    <li><a href="/customer-management">Customers</a></li>
+                    <li><a href="/measurement-management">Measurements</a></li>
+                    <li><a href="/payment-management">Payments</a></li>
+                    <li><a href="/dashboard">Dashboard</a></li>
+                </ul>
+            </div>
+            
+            <div class="col-lg-2 col-md-3 col-6 mb-3">
+                <h6 class="footer-title">Support</h6>
+                <ul class="footer-links">
+                    <li><a href="/help">Help Center</a></li>
+                    <li><a href="/settings">Settings</a></li>
+                    <li><a href="/profile">Profile</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="col-lg-4 col-md-12 mb-3">
+                <h6 class="footer-title">Connect With Us</h6>
+                <div class="footer-social">
+                    <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+                <p class="footer-contact">
+                    <i class="fas fa-envelope me-2"></i>support@boutiquemanager.com<br>
+                    <i class="fas fa-phone me-2"></i>+1 (555) 123-4567
+                </p>
+            </div>
+        </div>
+        
+        <hr class="footer-divider">
+        
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <p class="footer-copyright">© @DateTime.Now.Year Boutique Manager. All rights reserved.</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<style>
+.site-footer {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    color: #e5e7eb;
+    padding: 2rem 0 1rem;
+    margin-top: auto;
+    font-size: 0.85rem;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fbbf24;
+    margin-bottom: 0.75rem;
+}
+
+.footer-desc {
+    color: #9ca3af;
+    line-height: 1.5;
+    margin-bottom: 0;
+}
+
+.footer-title {
+    color: #f9fafb;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-links a {
+    color: #9ca3af;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.footer-links a:hover {
+    color: #fbbf24;
+}
+
+.footer-social {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #9ca3af;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.social-link:hover {
+    background: #fbbf24;
+    color: #1f2937;
+    transform: translateY(-2px);
+}
+
+.footer-contact {
+    color: #9ca3af;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.footer-divider {
+    border-color: rgba(255, 255, 255, 0.1);
+    margin: 1.5rem 0 1rem;
+}
+
+.footer-copyright {
+    color: #9ca3af;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.footer-legal {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: end;
+}
+
+.footer-legal a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color 0.2s ease;
+}
+
+.footer-legal a:hover {
+    color: #fbbf24;
+}
+
+/* Dark Theme Support */
+.dark-theme .site-footer {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.dark-theme .footer-brand {
+    color: #fbbf24 !important;
+}
+
+.dark-theme .footer-title {
+    color: #f1f5f9 !important;
+}
+
+.dark-theme .footer-desc,
+.dark-theme .footer-links a,
+.dark-theme .footer-contact,
+.dark-theme .footer-copyright,
+.dark-theme .footer-legal a {
+    color: #cbd5e1 !important;
+}
+
+.dark-theme .footer-links a:hover,
+.dark-theme .footer-legal a:hover {
+    color: #fbbf24 !important;
+}
+
+.dark-theme .social-link {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #cbd5e1 !important;
+}
+
+.dark-theme .social-link:hover {
+    background: #fbbf24 !important;
+    color: #0f172a !important;
+}
+
+.dark-theme .footer-divider {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+@@media (max-width: 768px) {
+    .site-footer {
+        padding: 1.5rem 0 1rem;
+    }
+    
+    .footer-legal {
+        justify-content: start;
+        margin-top: 0.5rem;
+    }
+    
+    .footer-social {
+        justify-content: start;
+    }
+}
+</style>

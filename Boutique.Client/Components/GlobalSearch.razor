@@ -1,0 +1,402 @@
+@* Global Search Component - Real-time search across customers, orders, and payments *@
+@* Features: Debounced search, dropdown results, keyboard navigation *@
+@using Boutique.Client.Services
+@inject SearchService SearchService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="global-search">
+    @* Search input with icon and event handlers *@
+    <div class="search-input-container">
+        <input type="text" class="form-control search-input" 
+               placeholder="Search customers, orders, payments..." 
+               @bind="searchQuery" 
+               @oninput="OnSearchInput"
+               @onfocus="ShowResults"
+               @onblur="HideResultsDelayed" />
+        <i class="fas fa-search search-icon"></i>
+    </div>
+
+    @* Search results dropdown with categorized results *@
+    @if (showResults && searchResults != null)
+    {
+        <div class="search-results">
+            @if (searchResults.TotalResults == 0)
+            {
+                <div class="no-results">No results found</div>
+            }
+            else
+            {
+                @* Customer search results section *@
+                @if (searchResults.Customers.Any())
+                {
+                    <div class="result-section">
+                        <h6>Customers</h6>
+                        @foreach (var customer in searchResults.Customers)
+                        {
+                            <div class="result-item" @onclick="() => NavigateToCustomer(customer.CustomerId)">
+                                <i class="fas fa-user"></i>
+                                <div>
+                                    <strong>@customer.CustomerName</strong>
+                                    <small>@customer.PhoneNo</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (searchResults.Orders.Any())
+                {
+                    <div class="result-section">
+                        <h6>Orders</h6>
+                        @foreach (var order in searchResults.Orders)
+                        {
+                            <div class="result-item" @onclick="() => NavigateToOrder(order.OrderId)">
+                                <i class="fas fa-shopping-bag"></i>
+                                <div>
+                                    <strong>Order #@order.OrderId</strong>
+                                    <small>@order.CustomerName - @order.Status</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (searchResults.Payments.Any())
+                {
+                    <div class="result-section">
+                        <h6>Payments</h6>
+                        @foreach (var payment in searchResults.Payments)
+                        {
+                            <div class="result-item" @onclick="() => NavigateToPayment(payment.PaymentId)">
+                                <i class="fas fa-credit-card"></i>
+                                <div>
+                                    <strong>₹@payment.Amount</strong>
+                                    <small>@payment.CustomerName - @payment.PaymentMethod</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .global-search {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .search-input-container {
+        position: relative;
+    }
+
+    .search-input {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 0.6rem 2.5rem 0.6rem 1rem;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        width: 100%;
+    }
+
+    .search-input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.85rem;
+    }
+
+    .search-input:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.15);
+        outline: none;
+        color: white;
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+        pointer-events: none;
+    }
+
+    .search-results {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        background: white;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        max-height: 450px;
+        overflow-y: auto;
+        z-index: 1050;
+        backdrop-filter: blur(20px);
+    }
+
+    .result-section {
+        padding: 12px 0 8px;
+        border-bottom: 1px solid #f1f3f4;
+    }
+
+    .result-section:last-child {
+        border-bottom: none;
+        padding-bottom: 12px;
+    }
+
+    .result-section:first-child {
+        padding-top: 16px;
+    }
+
+    .result-section h6 {
+        margin: 0 16px 8px;
+        color: #6b7280;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .result-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 0;
+    }
+
+    .result-item:hover {
+        background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
+        transform: translateX(4px);
+    }
+
+    .result-item i {
+        margin-right: 12px;
+        color: #667eea;
+        width: 18px;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .result-item div {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .result-item strong {
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+
+    .result-item small {
+        color: #6b7280;
+        font-size: 0.8rem;
+    }
+
+    .no-results {
+        padding: 32px 20px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.9rem;
+    }
+
+    /* Scrollbar Styling */
+    .search-results::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .search-results::-webkit-scrollbar-track {
+        background: #f1f3f4;
+        border-radius: 3px;
+    }
+
+    .search-results::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+    }
+
+    .search-results::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    /* Mobile Responsive */
+    @@media (max-width: 768px) {
+        .search-input {
+            font-size: 0.85rem;
+            padding: 0.5rem 2.2rem 0.5rem 0.9rem;
+        }
+        
+        .search-input::placeholder {
+            font-size: 0.8rem;
+        }
+        
+        .search-results {
+            left: -20px;
+            right: -20px;
+            max-height: 350px;
+        }
+        
+        .result-item {
+            padding: 12px 16px;
+        }
+    }
+
+    /* Dark theme support */
+    .dark-theme .search-input {
+        background: rgba(45, 55, 72, 0.8);
+        border-color: rgba(74, 85, 104, 0.6);
+        color: #e5e5e5;
+    }
+
+    .dark-theme .search-input::placeholder {
+        color: rgba(229, 229, 229, 0.6);
+    }
+
+    .dark-theme .search-input:focus {
+        background: rgba(45, 55, 72, 0.9);
+        border-color: rgba(74, 85, 104, 0.8);
+        color: #e5e5e5;
+    }
+
+    .dark-theme .search-results {
+        background: #2d3748;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .dark-theme .result-section {
+        border-bottom-color: #4a5568;
+    }
+
+    .dark-theme .result-section h6 {
+        color: #a0aec0;
+    }
+
+    .dark-theme .result-item:hover {
+        background: linear-gradient(90deg, #4a5568 0%, #2d3748 100%);
+    }
+
+    .dark-theme .result-item strong {
+        color: #e5e5e5;
+    }
+
+    .dark-theme .result-item small {
+        color: #a0aec0;
+    }
+
+    .dark-theme .no-results {
+        color: #718096;
+    }
+</style>
+
+@code {
+    // Search state variables
+    private string searchQuery = "";                    // Current search query
+    private GlobalSearchResultDto? searchResults;       // Search results from API
+    private bool showResults = false;                   // Whether to show results dropdown
+    private Timer? searchTimer;                         // Debounce timer for search input
+
+    // Handle search input with debouncing to avoid excessive API calls
+    private async void OnSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        
+        // Cancel previous search timer
+        searchTimer?.Dispose();
+        
+        // Clear results if query is empty
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            searchResults = null;
+            showResults = false;
+            StateHasChanged();
+            return;
+        }
+
+        // Start new search timer with 300ms delay (debouncing)
+        searchTimer = new Timer(_ => _ = PerformSearch(), null, 300, Timeout.Infinite);
+    }
+
+    // Perform actual search operation via API
+    private Task PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery)) return Task.CompletedTask;
+
+        return Task.Run(async () =>
+        {
+            try
+            {
+                // Call search service to get results
+                searchResults = await SearchService.GlobalSearchAsync(searchQuery);
+                showResults = true;
+                // Update UI on main thread
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                // Log search errors for debugging
+                Console.WriteLine($"Search error: {ex.Message}");
+            }
+        });
+    }
+
+    private void ShowResults()
+    {
+        if (searchResults != null)
+            showResults = true;
+    }
+
+    private void HideResultsDelayed()
+    {
+        _ = Task.Delay(200).ContinueWith(_ => 
+        {
+            showResults = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    // Navigation methods for search result items
+    private void NavigateToCustomer(int customerId)
+    {
+        Navigation.NavigateTo($"/customer-profile/{customerId}");
+        HideResults();
+    }
+
+    private void NavigateToOrder(int orderId)
+    {
+        Navigation.NavigateTo($"/orders");
+        HideResults();
+    }
+
+    private void NavigateToPayment(int paymentId)
+    {
+        Navigation.NavigateTo($"/payment-management");
+        HideResults();
+    }
+
+    // Hide search results and clear query
+    private void HideResults()
+    {
+        showResults = false;
+        searchQuery = "";
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        searchTimer?.Dispose();
+    }
+}

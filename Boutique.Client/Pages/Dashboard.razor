@@ -1,0 +1,1006 @@
+@page "/dashboard"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Boutique.Client.Services
+@using Boutique.Client.Models.DTOs
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject OrderService OrderService
+@inject PaymentService PaymentService
+@inject AnalyticsService AnalyticsService
+
+<div class="dashboard-container">
+    <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="page-header text-center">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div></div>
+                <div>
+                    <h1 class="page-title mb-0">
+                        <i class="fas fa-tachometer-alt me-3"></i>Dashboard
+                    </h1>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="RefreshData" disabled="@isLoading">
+                        <i class="fas fa-sync-alt @(isLoading ? "fa-spin" : "")"></i>
+                    </button>
+                </div>
+            </div>
+            <p class="page-subtitle">
+                @if (currentUser != null)
+                {
+                    <span>Welcome back, <strong>@currentUser.FirstName</strong>! Here's your boutique overview</span>
+                }
+                else
+                {
+                    <span>Welcome back! Here's your boutique overview</span>
+                }
+            </p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-2 mb-3 justify-content-center">
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="stats-card text-center @(isLoading ? "loading" : "")">
+                    <div class="stats-icon bg-primary mx-auto mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stats-info">
+                        @if (isLoading)
+                        {
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        }
+                        else
+                        {
+                            <h3 class="stats-number">@totalCustomers</h3>
+                        }
+                        <p class="stats-label">Total Customers</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="stats-card text-center @(isLoading ? "loading" : "")">
+                    <div class="stats-icon bg-success mx-auto mb-2">
+                        <i class="fas fa-shopping-bag"></i>
+                    </div>
+                    <div class="stats-info">
+                        @if (isLoading)
+                        {
+                            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                        }
+                        else
+                        {
+                            <h3 class="stats-number">@activeOrders</h3>
+                        }
+                        <p class="stats-label">Active Orders</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="stats-card text-center @(isLoading ? "loading" : "")">
+                    <div class="stats-icon bg-warning mx-auto mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stats-info">
+                        @if (isLoading)
+                        {
+                            <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+                        }
+                        else
+                        {
+                            <h3 class="stats-number">@pendingPayments</h3>
+                        }
+                        <p class="stats-label">Pending Payments</p>
+                        @if (pendingPayments == 0 && !isLoading)
+                        {
+                            <small class="text-muted">No pending payments</small>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="stats-card text-center @(isLoading ? "loading" : "")">
+                    <div class="stats-icon bg-info mx-auto mb-2">
+                        <i class="fas fa-rupee-sign"></i>
+                    </div>
+                    <div class="stats-info">
+                        @if (isLoading)
+                        {
+                            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                        }
+                        else
+                        {
+                            <h3 class="stats-number revenue-text">₹@monthlyRevenue.ToString("N0")</h3>
+                        }
+                        <p class="stats-label">Monthly Revenue</p>
+                        @if (monthlyRevenue == 0 && !isLoading)
+                        {
+                            <small class="text-muted">No revenue this month</small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row g-2 mb-3 justify-content-center">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 justify-content-center">
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <button class="btn btn-outline-primary w-100 quick-action-btn" @onclick="NavigateToCustomers">
+                                    <i class="fas fa-user-plus mb-2"></i>
+                                    <div>Add Customer</div>
+                                </button>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <button class="btn btn-outline-success w-100 quick-action-btn" @onclick="NavigateToMeasurements">
+                                    <i class="fas fa-ruler mb-2"></i>
+                                    <div>Take Measurements</div>
+                                </button>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <button class="btn btn-outline-warning w-100 quick-action-btn" @onclick="NavigateToPayments">
+                                    <i class="fas fa-credit-card mb-2"></i>
+                                    <div>Record Payment</div>
+                                </button>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <button class="btn btn-outline-info w-100 quick-action-btn" @onclick="NavigateToOrders">
+                                    <i class="fas fa-shopping-cart mb-2"></i>
+                                    <div>Manage Orders</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Analytics Section -->
+        <div class="row g-2 mb-3 justify-content-center">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Revenue Analytics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <Boutique.Client.Components.RevenueChart />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity & Schedule -->
+        <div class="row g-2 justify-content-center">
+            <div class="col-lg-6 col-md-12">
+                <div class="card h-100">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Recent Activity
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (isLoading)
+                        {
+                            <div class="text-center p-2">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <p class="mt-2 text-compact">Loading recent activity...</p>
+                            </div>
+                        }
+                        else if (recentActivities?.Any() == true)
+                        {
+                            <div class="activity-list">
+                                @foreach (var activity in recentActivities.Take(4))
+                                {
+                                    <div class="activity-item">
+                                        <div class="activity-icon @activity.Color">
+                                            <i class="@activity.Icon"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <div class="activity-title">@activity.Title</div>
+                                            <div class="activity-time">@GetTimeAgo(activity.Timestamp)</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center p-2">
+                                <i class="fas fa-history text-muted" style="font-size: 2rem;"></i>
+                                <p class="mt-2 text-muted text-compact">No recent activity found</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 col-md-12">
+                <div class="card h-100">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Today's Schedule
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="schedule-list">
+                            <div class="schedule-item">
+                                <div class="schedule-time">10:00 AM</div>
+                                <div class="schedule-title">Customer fitting</div>
+                            </div>
+                            <div class="schedule-item">
+                                <div class="schedule-time">2:00 PM</div>
+                                <div class="schedule-title">Delivery pickup</div>
+                            </div>
+                            <div class="schedule-item">
+                                <div class="schedule-time">4:00 PM</div>
+                                <div class="schedule-title">New measurements</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ===================================
+       Dashboard - Enhanced Styles
+       =================================== */
+
+    .dashboard-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+    }
+
+    .dashboard-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(99,102,241,0.05)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>') repeat;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .page-header {
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+        font-weight: 400;
+    }
+
+    /* Enhanced Stats Cards */
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem 0.75rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        height: 100%;
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        min-height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .stats-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .stats-card.loading {
+        opacity: 0.7;
+    }
+
+    .spinner-border-sm {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    .stats-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: white;
+        margin: 0 auto 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stats-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .stats-card:hover .stats-icon::before {
+        left: 100%;
+    }
+
+    .stats-card:hover .stats-icon {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    }
+
+    .stats-number {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #1f2937;
+        line-height: 1.1;
+        margin-bottom: 0.25rem;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        text-align: center;
+    }
+
+    .revenue-text {
+        font-size: 1.6rem !important;
+    }
+
+    .stats-label {
+        color: #6b7280;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 0;
+        text-align: center;
+    }
+
+    /* Enhanced Quick Action Buttons */
+    .quick-action-btn {
+        height: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        border: 2px solid;
+        position: relative;
+        overflow: hidden;
+        background: white;
+    }
+
+    .quick-action-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .quick-action-btn:hover::before {
+        opacity: 1;
+    }
+
+    .quick-action-btn:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .quick-action-btn i {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .quick-action-btn div {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Enhanced Cards */
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 1rem 1.5rem;
+        border-radius: 12px 12px 0 0 !important;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 700;
+        color: #1f2937;
+        font-size: 1.1rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+        position: relative;
+    }
+
+    /* Enhanced Activity & Schedule Lists */
+    .activity-list {
+        max-height: 450px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-item:hover {
+        background: rgba(99, 102, 241, 0.05);
+        transform: translateX(5px);
+        padding-left: 1rem;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+    }
+
+    .activity-item:hover .activity-icon {
+        transform: scale(1.1);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.3;
+    }
+
+    .activity-time {
+        font-size: 0.8rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .schedule-list {
+        max-height: 450px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+
+    .schedule-item {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+    }
+
+    .schedule-item:hover {
+        background: rgba(99, 102, 241, 0.05);
+        transform: translateX(5px);
+    }
+
+    .schedule-item:last-child {
+        border-bottom: none;
+    }
+
+    .schedule-time {
+        font-weight: 700;
+        color: #667eea;
+        font-size: 0.9rem;
+        min-width: 80px;
+        padding: 0.4rem 0.75rem;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .schedule-title {
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 0.9rem;
+        flex: 1;
+        margin-left: 1rem;
+    }
+
+    /* Enhanced Color Scheme */
+    .bg-primary { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; 
+    }
+    .bg-success { 
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important; 
+    }
+    .bg-warning { 
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important; 
+    }
+    .bg-info { 
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important; 
+    }
+
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: white;
+        font-weight: 700;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .user-avatar:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Enhanced Responsive Design */
+    @@media (max-width: 768px) {
+        .page-title {
+            font-size: 2rem;
+        }
+        
+        .stats-number {
+            font-size: 1.5rem;
+        }
+        
+        .stats-card {
+            padding: 1.5rem 1rem;
+            min-height: 160px;
+        }
+        
+        .stats-icon {
+            width: 55px;
+            height: 55px;
+            font-size: 1.5rem;
+        }
+        
+        .stats-label {
+            font-size: 0.85rem;
+        }
+        
+        .quick-action-btn {
+            height: 120px;
+            font-size: 0.95rem;
+        }
+        
+        .quick-action-btn i {
+            font-size: 2rem;
+        }
+        
+        .schedule-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .schedule-title {
+            margin-left: 0;
+        }
+
+        .schedule-time {
+            min-width: auto;
+            width: 100%;
+        }
+
+        .card-header {
+            padding: 1.5rem 1.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .stats-card {
+            padding: 1.25rem 0.75rem;
+            min-height: 140px;
+        }
+
+        .stats-number {
+            font-size: 1.25rem;
+        }
+
+        .quick-action-btn {
+            height: 100px;
+            font-size: 0.9rem;
+        }
+
+        .quick-action-btn i {
+            font-size: 1.75rem;
+        }
+    }
+
+    /* Performance Optimizations */
+    .stats-card,
+    .quick-action-btn,
+    .card,
+    .activity-item,
+    .schedule-item {
+        will-change: transform;
+    }
+
+    /* Reduce motion for users who prefer it */
+    @@media (prefers-reduced-motion: reduce) {
+        .stats-card,
+        .quick-action-btn,
+        .card,
+        .activity-item,
+        .schedule-item,
+        .stats-icon,
+        .activity-icon {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private int totalCustomers = 0;
+    private int activeOrders = 0;
+    private int pendingPayments = 0;
+    private decimal monthlyRevenue = 0;
+    private List<RecentActivityDto>? recentActivities;
+    private UserProfileDto? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUser();
+        try
+        {
+            await LoadDashboardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+            // Set default values on error
+            totalCustomers = 0;
+            activeOrders = 0;
+            pendingPayments = 0;
+            monthlyRevenue = 0;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        await LoadStatsFromServices();
+    }
+
+    private async Task LoadStatsFromServices()
+    {
+        try
+        {
+            // Get real customers count from database
+            var customers = await CustomerService.GetCustomersAsync();
+            totalCustomers = customers?.Count() ?? 0;
+            
+            // Get active orders count
+            var orders = await OrderService.GetActiveOrdersAsync();
+            activeOrders = orders?.Count ?? 0;
+            
+            // Get real payment data
+            Console.WriteLine("Fetching payments from API...");
+            List<PaymentDto> payments = new();
+            try
+            {
+                payments = await PaymentService.GetPaymentsAsync();
+                Console.WriteLine($"Received {payments?.Count ?? 0} payments from API");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching payments: {ex.Message}");
+                payments = new List<PaymentDto>();
+            }
+            
+            // Calculate pending payments (orders with Pending status)
+            pendingPayments = payments?.Count(p => p.Status == "Pending") ?? 0;
+            Console.WriteLine($"Pending payments count: {pendingPayments}");
+            
+            // Calculate monthly revenue (completed payments from current month)
+            var currentMonth = DateTime.Now.Month;
+            var currentYear = DateTime.Now.Year;
+            monthlyRevenue = payments?
+                .Where(p => p.Status == "Completed" && 
+                           p.PaymentDate.Month == currentMonth && 
+                           p.PaymentDate.Year == currentYear)
+                .Sum(p => p.Amount) ?? 0;
+            Console.WriteLine($"Monthly revenue: {monthlyRevenue}");
+            
+            // If no payments exist, show 0 but log for user awareness
+            if (payments?.Count == 0)
+            {
+                Console.WriteLine("No payments found in database. Add payments to see real statistics.");
+                // Keep actual values (0) to show real state
+            }
+
+            // Create recent activities from various sources
+            recentActivities = new List<RecentActivityDto>();
+            
+            // Add recent payments
+            if (payments?.Any() == true)
+            {
+                var recentPayments = payments
+                    .OrderByDescending(p => p.PaymentDate)
+                    .Take(2)
+                    .ToList();
+                    
+                foreach (var payment in recentPayments)
+                {
+                    recentActivities.Add(new RecentActivityDto
+                    {
+                        Title = $"Payment: ₹{payment.Amount:N0}",
+                        Description = $"From {payment.CustomerName} - {payment.Status}",
+                        Timestamp = payment.PaymentDate,
+                        ActivityType = "payment",
+                        Icon = payment.Status == "Completed" ? "fas fa-check-circle" : "fas fa-clock",
+                        Color = payment.Status == "Completed" ? "bg-success" : "bg-warning"
+                    });
+                }
+            }
+            
+            // Add recent customers
+            if (customers?.Any() == true)
+            {
+                var recentCustomers = customers.Take(2).ToList();
+                foreach (var customer in recentCustomers)
+                {
+                    recentActivities.Add(new RecentActivityDto
+                    {
+                        Title = $"New Customer: {customer.CustomerName}",
+                        Description = $"Email: {customer.Email}",
+                        Timestamp = DateTime.Now.AddDays(-new Random().Next(1, 7)),
+                        ActivityType = "customer",
+                        Icon = "fas fa-user-plus",
+                        Color = "bg-primary"
+                    });
+                }
+            }
+            
+            // Sort activities by timestamp
+            recentActivities = recentActivities.OrderByDescending(a => a.Timestamp).Take(4).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stats from services: {ex.Message}");
+            totalCustomers = 0;
+            activeOrders = 0;
+            pendingPayments = 0;
+            monthlyRevenue = 0;
+            recentActivities = new List<RecentActivityDto>();
+        }
+    }
+
+    private string GetTimeAgo(DateTime timestamp)
+    {
+        var timeSpan = DateTime.Now - timestamp;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes} minutes ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours} hours ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays} days ago";
+        
+        return timestamp.ToString("MMM dd, yyyy");
+    }
+
+    private void NavigateToCustomers()
+    {
+        Navigation.NavigateTo("/customer-management");
+    }
+
+    private void NavigateToMeasurements()
+    {
+        Navigation.NavigateTo("/measurement-management");
+    }
+
+    private void NavigateToPayments()
+    {
+        Navigation.NavigateTo("/payment-management");
+    }
+
+    private void NavigateToOrders()
+    {
+        Navigation.NavigateTo("/orders");
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                var email = authState.User.FindFirst("email")?.Value ??
+                           authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value ??
+                           authState.User.Identity.Name ?? "user@example.com";
+                
+                var fullName = authState.User.FindFirst("name")?.Value ??
+                              authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value ??
+                              authState.User.FindFirst("unique_name")?.Value ?? "User";
+                
+                var role = authState.User.FindFirst("role")?.Value ??
+                          authState.User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value ??
+                          "User";
+                
+                var nameParts = fullName.Split(' ', 2);
+                currentUser = new UserProfileDto
+                {
+                    FirstName = nameParts.Length > 0 ? nameParts[0] : "User",
+                    LastName = nameParts.Length > 1 ? nameParts[1] : "",
+                    Email = email,
+                    Role = role,
+                    JoinDate = DateTime.Now.AddMonths(-3),
+                    Bio = "",
+                    PhoneNumber = ""
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading current user: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        isLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            await LoadDashboardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing dashboard data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+
+}

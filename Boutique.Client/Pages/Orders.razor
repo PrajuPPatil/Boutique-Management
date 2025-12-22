@@ -1,0 +1,684 @@
+@page "/orders"
+@inject Boutique.Client.Services.OrderService OrderService
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.NotificationService NotificationService
+@inject NavigationManager Navigation
+@using Boutique.Client.Models
+@using Boutique.Client.Components
+@using Boutique.Client.Services
+
+<div class="orders-container">
+    <div class="page-header text-center">
+        <div class="mb-3">
+            <h1 class="page-title mb-0">
+                <i class="fas fa-shopping-bag me-3"></i>Order Management
+            </h1>
+        </div>
+        <p class="page-subtitle mb-3">Manage all customer orders and track progress</p>
+        <div class="text-end">
+            <button class="btn btn-primary" @onclick="ShowCreateOrderModal">
+                <i class="fas fa-plus me-2"></i>Create New Order
+            </button>
+        </div>
+    </div>
+
+    <!-- Order Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card pending">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@pendingOrders</h3>
+                    <p>Pending Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card progress">
+                <div class="stat-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@inProgressOrders</h3>
+                    <p>In Progress</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card ready">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@readyOrders</h3>
+                    <p>Ready for Delivery</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card delivered">
+                <div class="stat-icon">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@deliveredOrders</h3>
+                    <p>Delivered</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-floating">
+                        <select class="form-select" @bind="statusFilter" @bind:after="ApplyFilters">
+                            <option value="">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="ReadyForDelivery">Ready for Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                        </select>
+                        <label>Status Filter</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-floating">
+                        <select class="form-select" @bind="priorityFilter" @bind:after="ApplyFilters">
+                            <option value="">All Priorities</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="Express">Express</option>
+                        </select>
+                        <label>Priority Filter</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-floating">
+                        <input type="date" class="form-control" @bind="startDateFilter" @bind:after="ApplyFilters" />
+                        <label>Start Date</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-floating">
+                        <input type="date" class="form-control" @bind="endDateFilter" @bind:after="ApplyFilters" />
+                        <label>End Date</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders List -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Orders (@paginatedOrders.TotalItems)
+                </h5>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" @bind="pageSize" @bind:after="UpdatePagination" style="width: auto;">
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Loading orders...</p>
+                </div>
+            }
+            else if (paginatedOrders.Items?.Any() == true)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order Details</th>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Dates</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in paginatedOrders.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <h6 class="mb-1">Order #@order.OrderId</h6>
+                                            <small class="text-muted">@order.TypeName</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-bold">@order.CustomerName</div>
+                                            <small class="text-muted">@order.PhoneNo</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm dropdown-toggle @GetStatusButtonClass(order.Status)" 
+                                                    type="button" data-bs-toggle="dropdown">
+                                                @order.Status
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" @onclick="@(() => UpdateOrderStatus(order.OrderId, "Pending"))">Pending</a></li>
+                                                <li><a class="dropdown-item" @onclick="@(() => UpdateOrderStatus(order.OrderId, "InProgress"))">In Progress</a></li>
+                                                <li><a class="dropdown-item" @onclick="@(() => UpdateOrderStatus(order.OrderId, "ReadyForDelivery"))">Ready for Delivery</a></li>
+                                                <li><a class="dropdown-item" @onclick="@(() => UpdateOrderStatus(order.OrderId, "Delivered"))">Delivered</a></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetPriorityBadgeClass(order.Priority)">
+                                            @order.Priority
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <small class="text-muted">Ordered:</small><br>
+                                            <strong>@order.OrderDate.ToString("dd/MM/yyyy")</strong><br>
+                                            <small class="text-muted">Due:</small><br>
+                                            <span class="@(order.EstimatedDeliveryDate < DateTime.Now && order.Status != "Delivered" ? "text-danger" : "")">
+                                                @order.EstimatedDeliveryDate.ToString("dd/MM/yyyy")
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>₹@order.TotalAmount</strong><br>
+                                            @if (order.RemainingAmount > 0)
+                                            {
+                                                <small class="text-warning">Pending: ₹@order.RemainingAmount</small>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-success">Fully Paid</small>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => ShowOrderTimeline(order.OrderId)" title="Timeline">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewCustomer(order.CustomerId)" title="View Customer">
+                                                <i class="fas fa-user"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" @onclick="() => EditOrder(order)" title="Edit Order">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (paginatedOrders.TotalItems > 0)
+                {
+                    <div class="mt-3 px-3 pb-3">
+                        <PaginationComponent CurrentPage="currentPage" 
+                                           TotalItems="paginatedOrders.TotalItems" 
+                                           PageSize="pageSize" 
+                                           OnPageChange="OnPageChanged" />
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center p-4">
+                    <i class="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
+                    <h5>No orders found</h5>
+                    <p class="text-muted">Create your first order to get started</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create Order Modal -->
+@if (showCreateOrderModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>Create New Order
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreateOrderModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="createOrderModel" OnValidSubmit="CreateOrder">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <select class="form-select" @bind="createOrderModel.CustomerId">
+                                        <option value="0">Select Customer</option>
+                                        @foreach (var customer in customers)
+                                        {
+                                            <option value="@customer.CustomerId">@customer.CustomerName - @customer.PhoneNo</option>
+                                        }
+                                    </select>
+                                    <label>Customer</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <select class="form-select" @bind="createOrderModel.Priority">
+                                        <option value="Regular">Regular (14 days)</option>
+                                        <option value="Urgent">Urgent (7 days)</option>
+                                        <option value="Express">Express (3 days)</option>
+                                    </select>
+                                    <label>Priority</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" @bind="createOrderModel.TotalAmount" step="0.01" />
+                                <label>Total Amount</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" @bind="createOrderModel.Notes" rows="3"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseCreateOrderModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isCreatingOrder">
+                                @if (isCreatingOrder)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Order
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Order Timeline Modal -->
+@if (showTimelineModal && orderTimeline != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-history me-2"></i>Order Timeline - #@orderTimeline.OrderId
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseTimelineModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="timeline">
+                        @foreach (var status in orderTimeline.StatusHistory.OrderBy(s => s.ChangedDate))
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@status.Status</strong>
+                                        <small class="text-muted">@status.ChangedDate.ToString("dd/MM/yyyy HH:mm")</small>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(status.Notes))
+                                    {
+                                        <p class="mb-1">@status.Notes</p>
+                                    }
+                                    <small class="text-muted">Changed by: @status.ChangedBy</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTimelineModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .orders-container {
+        width: 100%;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+        padding: 2rem 1rem;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        position: relative;
+        overflow: hidden;
+        height: 140px;
+        min-height: 140px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+    }
+
+    .stat-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin-right: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card.pending .stat-icon { background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); }
+    .stat-card.progress .stat-icon { background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); }
+    .stat-card.ready .stat-icon { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
+    .stat-card.delivered .stat-icon { background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); }
+
+    .stat-content h3 {
+        font-size: 2rem;
+        font-weight: 900;
+        margin: 0 0 0.5rem 0;
+        color: #1f2937;
+        line-height: 1.1;
+    }
+
+    .stat-content p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -23px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #007bff;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #dee2e6;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #007bff;
+    }
+</style>
+
+@code {
+    private List<OrderDto> allOrders = new();
+    private List<OrderDto> filteredOrders = new();
+    private PaginationModel<OrderDto> paginatedOrders = new();
+    private List<CustomerDto> customers = new();
+    private CreateOrderDto createOrderModel = new();
+    private OrderTimelineDto? orderTimeline = null;
+
+    private string statusFilter = string.Empty;
+    private string priorityFilter = string.Empty;
+    private DateTime? startDateFilter;
+    private DateTime? endDateFilter;
+
+    private bool showCreateOrderModal = false;
+    private bool showTimelineModal = false;
+    private bool isLoading = true;
+    private bool isCreatingOrder = false;
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    // Statistics
+    private int pendingOrders = 0;
+    private int inProgressOrders = 0;
+    private int readyOrders = 0;
+    private int deliveredOrders = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        await CheckDueDates();
+    }
+    
+    private async Task CheckDueDates()
+    {
+        await NotificationService.CheckDueDatesAsync(allOrders);
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            allOrders = await OrderService.GetAllOrdersAsync();
+            customers = await CustomerService.GetCustomersAsync();
+            
+            CalculateStatistics();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CalculateStatistics()
+    {
+        pendingOrders = allOrders.Count(o => o.Status == "Pending");
+        inProgressOrders = allOrders.Count(o => o.Status == "InProgress");
+        readyOrders = allOrders.Count(o => o.Status == "ReadyForDelivery");
+        deliveredOrders = allOrders.Count(o => o.Status == "Delivered");
+    }
+
+    private void ApplyFilters()
+    {
+        filteredOrders = allOrders.Where(o =>
+            (string.IsNullOrEmpty(statusFilter) || o.Status == statusFilter) &&
+            (string.IsNullOrEmpty(priorityFilter) || o.Priority == priorityFilter) &&
+            (!startDateFilter.HasValue || o.OrderDate >= startDateFilter) &&
+            (!endDateFilter.HasValue || o.OrderDate <= endDateFilter)
+        ).ToList();
+
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private void UpdatePagination()
+    {
+        paginatedOrders = filteredOrders.ToPaginatedList(currentPage, pageSize);
+    }
+
+    private void OnPageChanged(int page)
+    {
+        currentPage = page;
+        UpdatePagination();
+        StateHasChanged();
+    }
+
+    private void ShowCreateOrderModal()
+    {
+        createOrderModel = new CreateOrderDto { Priority = "Regular" };
+        showCreateOrderModal = true;
+    }
+
+    private void CloseCreateOrderModal()
+    {
+        showCreateOrderModal = false;
+        createOrderModel = new CreateOrderDto();
+    }
+
+    private async Task CreateOrder()
+    {
+        try
+        {
+            isCreatingOrder = true;
+            var newOrder = await OrderService.CreateOrderAsync(createOrderModel);
+            if (newOrder != null)
+            {
+                await NotificationService.ShowSuccessAsync($"Order #{newOrder.OrderId} created successfully!");
+                await LoadData();
+                CloseCreateOrderModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowErrorAsync($"Failed to create order: {ex.Message}");
+            Console.WriteLine($"Error creating order: {ex.Message}");
+        }
+        finally
+        {
+            isCreatingOrder = false;
+        }
+    }
+
+    private async Task UpdateOrderStatus(int orderId, string newStatus)
+    {
+        try
+        {
+            var updateDto = new UpdateOrderStatusDto { Status = newStatus };
+            await OrderService.UpdateOrderStatusAsync(orderId, updateDto);
+            await NotificationService.ShowSuccessAsync($"Order #{orderId} status updated to {newStatus}");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.ShowErrorAsync($"Failed to update order status: {ex.Message}");
+            Console.WriteLine($"Error updating order status: {ex.Message}");
+        }
+    }
+
+    private async Task ShowOrderTimeline(int orderId)
+    {
+        try
+        {
+            orderTimeline = await OrderService.GetOrderTimelineAsync(orderId);
+            showTimelineModal = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading timeline: {ex.Message}");
+        }
+    }
+
+    private void CloseTimelineModal()
+    {
+        showTimelineModal = false;
+        orderTimeline = null;
+    }
+
+    private void ViewCustomer(int customerId)
+    {
+        Navigation.NavigateTo($"/customer-profile/{customerId}");
+    }
+
+    private void EditOrder(OrderDto order)
+    {
+        Navigation.NavigateTo($"/customer-profile/{order.CustomerId}");
+    }
+
+    private string GetStatusButtonClass(string status)
+    {
+        return status switch
+        {
+            "Pending" => "btn-warning",
+            "InProgress" => "btn-info",
+            "ReadyForDelivery" => "btn-success",
+            "Delivered" => "btn-secondary",
+            _ => "btn-light"
+        };
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        return priority switch
+        {
+            "Express" => "bg-danger",
+            "Urgent" => "bg-warning",
+            "Regular" => "bg-primary",
+            _ => "bg-light text-dark"
+        };
+    }
+}

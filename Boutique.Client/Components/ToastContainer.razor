@@ -1,0 +1,134 @@
+@* Toast Container Component - Displays notification messages with auto-dismiss *@
+@* Features: Multiple notification types, auto-removal, responsive positioning *@
+@using Boutique.Client.Services
+@inject NotificationService NotificationService
+@implements IDisposable
+
+@* Toast notification container positioned at top-right *@
+<div class="toast-container">
+    @foreach (var notification in notifications)
+    {
+        @* Individual toast with type-specific styling *@
+        <div class="toast @GetToastClass(notification.Type) show" role="alert">
+            <div class="toast-header">
+                @* Icon and title based on notification type *@
+                <i class="@GetToastIcon(notification.Type) me-2"></i>
+                <strong class="me-auto">@GetToastTitle(notification.Type)</strong>
+                @* Timestamp for when notification was created *@
+                <small>@notification.Timestamp.ToString("HH:mm")</small>
+                @* Close button for manual dismissal *@
+                <button type="button" class="btn-close" @onclick="() => RemoveNotification(notification.Id)"></button>
+            </div>
+            @* Notification message content *@
+            <div class="toast-body">
+                @notification.Message
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+        max-width: 350px;
+    }
+
+    .toast {
+        margin-bottom: 10px;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .toast.success {
+        border-left: 4px solid #28a745;
+    }
+
+    .toast.error {
+        border-left: 4px solid #dc3545;
+    }
+
+    .toast.warning {
+        border-left: 4px solid #ffc107;
+    }
+
+    .toast.info {
+        border-left: 4px solid #17a2b8;
+    }
+
+
+
+    .toast-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .toast-body {
+        padding: 12px;
+    }
+</style>
+
+@code {
+    // List of active notifications to display
+    private List<NotificationDto> notifications = new();
+
+    // Initialize component and subscribe to notification events
+    protected override void OnInitialized()
+    {
+        // Subscribe to notification service events
+        NotificationService.OnNotificationsChanged += UpdateNotifications;
+        // Load initial notifications
+        UpdateNotifications();
+    }
+
+    // Update notifications list and refresh UI
+    private void UpdateNotifications()
+    {
+        notifications = NotificationService.GetNotifications();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Remove specific notification by ID
+    private void RemoveNotification(string id)
+    {
+        NotificationService.RemoveNotification(id);
+    }
+
+    // Get CSS class for toast styling based on notification type
+    private string GetToastClass(NotificationType type) => type switch
+    {
+        NotificationType.Success => "success",
+        NotificationType.Error => "error",
+        NotificationType.Warning => "warning",
+        NotificationType.Info => "info",
+        _ => "info"
+    };
+
+    // Get FontAwesome icon class based on notification type
+    private string GetToastIcon(NotificationType type) => type switch
+    {
+        NotificationType.Success => "fas fa-check-circle text-success",
+        NotificationType.Error => "fas fa-exclamation-circle text-danger",
+        NotificationType.Warning => "fas fa-exclamation-triangle text-warning",
+        NotificationType.Info => "fas fa-info-circle text-info",
+        _ => "fas fa-info-circle text-info"
+    };
+
+    // Get display title based on notification type
+    private string GetToastTitle(NotificationType type) => type switch
+    {
+        NotificationType.Success => "Success",
+        NotificationType.Error => "Error",
+        NotificationType.Warning => "Warning",
+        NotificationType.Info => "Information",
+        _ => "Notification"
+    };
+
+    // Cleanup: Unsubscribe from notification events
+    public void Dispose()
+    {
+        NotificationService.OnNotificationsChanged -= UpdateNotifications;
+    }
+}

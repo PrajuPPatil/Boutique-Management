@@ -1,0 +1,239 @@
+@* Garment Type Management Page - Complete CRUD operations for managing garment types *@
+@* Route: /types - Accessible via navigation menu *@
+@page "/types"
+@using Boutique.Client.Models
+@using Boutique.Client.Services
+@* Dependency injection for type service and JavaScript runtime *@
+@inject TypeService TypeService
+@inject IJSRuntime JSRuntime
+
+@* Set browser tab title *@
+<PageTitle>Garment Types</PageTitle>
+
+@* Main container using Bootstrap fluid layout for responsive design *@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            @* Card component for organized content presentation *@
+            <div class="card">
+                @* Header section with title and primary action button *@
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Garment Types Management</h4>
+                    @* Add new type button - triggers modal dialog *@
+                    <button class="btn btn-primary" @onclick="ShowAddModal">
+                        <i class="fas fa-plus"></i> Add Type
+                    </button>
+                </div>
+                @* Card body containing the main content area *@
+                <div class="card-body">
+                    @* Conditional rendering based on data loading state *@
+                    @if (types == null)
+                    {
+                        @* Loading state - show spinner while fetching data from API *@
+                        <div class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p>Loading types...</p>
+                        </div>
+                    }
+                    else if (!types.Any())
+                    {
+                        @* Empty state - show when no types exist in database *@
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No garment types found. Add some types to get started.
+                        </div>
+                    }
+                    else
+                    {
+                        @* Data loaded state - display types in responsive table *@
+                        @* Responsive table wrapper for mobile compatibility *@
+                        <div class="table-responsive">
+                            @* Bootstrap striped table for better readability *@
+                            <table class="table table-striped">
+                                @* Table header with column definitions *@
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>          @* Primary key display *@
+                                        <th>Type Name</th>   @* Garment type name *@
+                                        <th>Actions</th>     @* CRUD operation buttons *@
+                                    </tr>
+                                </thead>
+                                @* Table body with dynamic content from types list *@
+                                <tbody>
+                                    @* Loop through each type and render table row *@
+                                    @foreach (var type in types)
+                                    {
+                                        <tr>
+                                            @* Display type ID (read-only) *@
+                                            <td>@type.TypeId</td>
+                                            @* Display type name (main identifier) *@
+                                            <td>@type.TypeName</td>
+                                            @* Action buttons for edit and delete operations *@
+                                            <td>
+                                                @* Edit button - opens modal with pre-filled form *@
+                                                <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditType(type)">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                @* Delete button - shows confirmation dialog *@
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteType(type.TypeId)">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Bootstrap Modal Dialog for Add/Edit Type Operations *@
+@* Conditional CSS classes for show/hide animation and backdrop *@
+<div class="modal fade @(showModal ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    @* Modal dialog container with responsive sizing *@
+    <div class="modal-dialog">
+        <div class="modal-content">
+            @* Modal header with dynamic title and close button *@
+            <div class="modal-header">
+                @* Dynamic title based on operation mode (Add vs Edit) *@
+                <h5 class="modal-title">@(isEditing ? "Edit" : "Add") Garment Type</h5>
+                @* Close button (X) in top-right corner *@
+                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+            </div>
+            @* Modal body containing the form *@
+            <div class="modal-body">
+                @* Blazor EditForm component for data binding and validation *@
+                <EditForm Model="currentType" OnValidSubmit="SaveType">
+                    @* Enable data annotation validation *@
+                    <DataAnnotationsValidator />
+                    @* Display validation errors in red text *@
+                    <ValidationSummary class="text-danger" />
+                    
+                    @* Form group for type name input *@
+                    <div class="mb-3">
+                        <label class="form-label">Type Name</label>
+                        @* Two-way data binding to currentType.TypeName property *@
+                        <InputText class="form-control" @bind-Value="currentType.TypeName" placeholder="Enter garment type name" />
+                    </div>
+                </EditForm>
+            </div>
+            @* Modal footer with action buttons *@
+            <div class="modal-footer">
+                @* Cancel button - closes modal without saving *@
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                @* Save button - dynamic text based on operation mode *@
+                <button type="button" class="btn btn-primary" @onclick="SaveType">
+                    @(isEditing ? "Update" : "Create")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Component state variables for managing UI and data
+    
+    // List of all garment types loaded from API (null indicates loading state)
+    private List<TypeModel>? types;
+    
+    // Current type being added or edited in the modal form
+    private TypeModel currentType = new();
+    
+    // Boolean flag to control modal dialog visibility
+    private bool showModal = false;
+    
+    // Boolean flag to distinguish between Add (false) and Edit (true) operations
+    private bool isEditing = false;
+
+    // Blazor lifecycle method - called when component is first initialized
+    // Automatically loads all types from the API on page load
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTypes();
+    }
+
+    // Fetch all garment types from the backend API
+    // Updates the types list which triggers UI re-render
+    private async Task LoadTypes()
+    {
+        types = await TypeService.GetTypesAsync();
+    }
+
+    // Prepare modal for adding a new garment type
+    // Resets form state and shows modal in "Add" mode
+    private void ShowAddModal()
+    {
+        currentType = new TypeModel();  // Clear form with new empty object
+        isEditing = false;              // Set to Add mode
+        showModal = true;               // Show the modal dialog
+    }
+
+    // Prepare modal for editing an existing garment type
+    // Pre-fills form with selected type data and shows modal in "Edit" mode
+    private void EditType(TypeModel type)
+    {
+        // Create a copy of the type to avoid modifying the original object
+        currentType = new TypeModel { TypeId = type.TypeId, TypeName = type.TypeName };
+        isEditing = true;               // Set to Edit mode
+        showModal = true;               // Show the modal dialog
+    }
+
+    // Close the modal dialog and reset form state
+    // Called by Cancel button or X button in modal header
+    private void CloseModal()
+    {
+        showModal = false;              // Hide the modal
+        currentType = new TypeModel();  // Reset form data
+    }
+
+    // Save the current type (either create new or update existing)
+    // Handles both Add and Edit operations based on isEditing flag
+    private async Task SaveType()
+    {
+        // Basic validation - ensure type name is not empty
+        if (string.IsNullOrWhiteSpace(currentType.TypeName))
+            return;
+
+        bool success;
+        if (isEditing)
+        {
+            // Update existing type via PUT request
+            success = await TypeService.UpdateTypeAsync(currentType);
+        }
+        else
+        {
+            // Create new type via POST request
+            success = await TypeService.CreateTypeAsync(currentType);
+        }
+
+        // If operation successful, refresh the list and close modal
+        if (success)
+        {
+            await LoadTypes();  // Reload data to show changes
+            CloseModal();       // Close modal and reset form
+        }
+        // Note: Error handling could be added here for failed operations
+    }
+
+    // Delete a garment type with user confirmation
+    // Uses JavaScript confirm dialog for user confirmation
+    private async Task DeleteType(int id)
+    {
+        // Show browser confirmation dialog via JavaScript interop
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this type?"))
+        {
+            // User confirmed - proceed with deletion
+            var success = await TypeService.DeleteTypeAsync(id);
+            if (success)
+            {
+                // Refresh the list to remove deleted item from UI
+                await LoadTypes();
+            }
+            // Note: Error handling could be added for failed deletions
+        }
+        // If user cancels confirmation, no action is taken
+    }
+}

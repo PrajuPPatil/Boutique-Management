@@ -1,0 +1,76 @@
+@page "/customers"
+@inject Boutique.Client.Services.CustomerService CustomerService
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Models.DTOs.Authentication
+@using System.Collections.Generic
+@using System.Threading.Tasks
+
+
+<h3>Customers</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">Error: @errorMessage</div>
+}
+
+@if (customers == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (customers.Count == 0)
+{
+    <p>No customers found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>CustomerName</th>
+                <th>PhoneNo</th>
+                <th>Email</th>
+                @* <th>Gender</th> *@
+                <th>Address</th>
+                <th>Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var customer in customers)
+            {
+                <tr>
+                    <td>@customer.CustomerName</td>
+                    <td>@customer.PhoneNo</td>
+                    <td>@customer.Email</td>
+                    @* <td>@customer.Gender</td> *@
+                    <td>@customer.Address</td>
+                    <td>@(customer.Active ? "Yes" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CustomerDto>? customers;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Console.WriteLine("Fetching customers...");
+            customers = await CustomerService.GetCustomersAsync();
+            Console.WriteLine($"Received {customers?.Count ?? 0} customers");
+            if (customers == null)
+            {
+                customers = new List<CustomerDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Error: {ex.Message}");
+            customers = new List<CustomerDto>();
+        }
+    }
+}

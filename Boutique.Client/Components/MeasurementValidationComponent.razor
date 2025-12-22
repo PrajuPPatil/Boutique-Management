@@ -1,0 +1,170 @@
+@using Boutique.Client.Models
+@using Boutique.Client.Services
+@inject CustomerMeasurementService MeasurementService
+
+<div class="measurement-validation">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select class="form-select" @onchange="OnGenderChanged">
+                    <option value="">Select Gender</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                </select>
+                <label>Gender</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <select class="form-select" @onchange="OnMeasurementTypeChanged" disabled="@string.IsNullOrEmpty(Gender)">
+                    <option value="">Select Measurement</option>
+                    @if (measurementRanges != null)
+                    {
+                        @foreach (var range in measurementRanges)
+                        {
+                            <option value="@range.Key">@range.Key (@range.Value.Min-@range.Value.Max @range.Value.Unit)</option>
+                        }
+                    }
+                </select>
+                <label>Measurement Type</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <input type="number" class="form-control @(validationResult?.IsValid == false ? "is-invalid" : "")" 
+                       @onchange="ValidateMeasurement" step="0.1" 
+                       disabled="@string.IsNullOrEmpty(MeasurementType)" placeholder="Value" />
+                <label>Value (inches)</label>
+                @if (validationResult?.IsValid == false)
+                {
+                    <div class="invalid-feedback">@validationResult.Message</div>
+                }
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100 h-100" @onclick="AddMeasurement" 
+                    disabled="@(validationResult?.IsValid != true)">
+                <i class="fas fa-plus"></i> Add
+            </button>
+        </div>
+    </div>
+
+    @if (measurements.Any())
+    {
+        <div class="measurements-list">
+            <h6>Added Measurements:</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var measurement in measurements)
+                        {
+                            <tr>
+                                <td>@measurement.MeasurementType</td>
+                                <td>@measurement.MeasurementValue @measurement.Unit</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveMeasurement(measurement)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-success" @onclick="SaveAllMeasurements">
+                <i class="fas fa-save"></i> Save All Measurements
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+    [Parameter] public EventCallback OnMeasurementsSaved { get; set; }
+
+    private string Gender = string.Empty;
+    private string MeasurementType = string.Empty;
+    private decimal MeasurementValue;
+    private Dictionary<string, MeasurementRange>? measurementRanges;
+    private MeasurementValidationResponse? validationResult;
+    private List<CustomerMeasurement> measurements = new();
+
+    private async Task OnGenderChanged(ChangeEventArgs e)
+    {
+        Gender = e.Value?.ToString() ?? string.Empty;
+        MeasurementType = string.Empty;
+        MeasurementValue = 0;
+        validationResult = null;
+        
+        if (!string.IsNullOrEmpty(Gender))
+        {
+            measurementRanges = await MeasurementService.GetMeasurementRangesAsync(Gender);
+        }
+        else
+        {
+            measurementRanges = null;
+        }
+    }
+
+    private void OnMeasurementTypeChanged(ChangeEventArgs e)
+    {
+        MeasurementType = e.Value?.ToString() ?? string.Empty;
+        MeasurementValue = 0;
+        validationResult = null;
+    }
+
+    private async Task ValidateMeasurement(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var value))
+        {
+            MeasurementValue = value;
+            if (!string.IsNullOrEmpty(Gender) && !string.IsNullOrEmpty(MeasurementType) && MeasurementValue > 0)
+            {
+                validationResult = await MeasurementService.ValidateMeasurementAsync(Gender, MeasurementType, MeasurementValue);
+            }
+        }
+    }
+
+    private void AddMeasurement()
+    {
+        if (validationResult?.IsValid == true)
+        {
+            var measurement = new CustomerMeasurement
+            {
+                CustomerId = CustomerId,
+                Gender = Gender,
+                MeasurementType = MeasurementType,
+                MeasurementValue = MeasurementValue,
+                Unit = "inches"
+            };
+
+            measurements.Add(measurement);
+            MeasurementType = string.Empty;
+            MeasurementValue = 0;
+            validationResult = null;
+        }
+    }
+
+    private void RemoveMeasurement(CustomerMeasurement measurement)
+    {
+        measurements.Remove(measurement);
+    }
+
+    private async Task SaveAllMeasurements()
+    {
+        foreach (var measurement in measurements)
+        {
+            await MeasurementService.CreateMeasurementAsync(measurement);
+        }
+        
+        measurements.Clear();
+        await OnMeasurementsSaved.InvokeAsync();
+    }
+}

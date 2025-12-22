@@ -1,0 +1,127 @@
+@using Boutique.Client.Services
+@inject AnalyticsService AnalyticsService
+
+<div class="performance-container">
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-tachometer-alt me-2"></i>Performance Metrics</h5>
+        </div>
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center p-3">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            }
+            else if (metrics != null)
+            {
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-icon bg-primary">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>@metrics.AverageOrderProcessingTime.ToString("F1") days</h4>
+                            <p>Avg Processing Time</p>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-icon bg-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>@metrics.OrderCompletionRate.ToString("F1")%</h4>
+                            <p>Completion Rate</p>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-icon bg-info">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>@metrics.CustomerSatisfactionRate.ToString("F1")%</h4>
+                            <p>Customer Satisfaction</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .performance-container .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .metric-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .metric-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+    }
+
+    .metric-content h4 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .metric-content p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-success { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
+    .bg-info { background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private Services.PerformanceMetricsDto? metrics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMetrics();
+    }
+
+    private async Task LoadMetrics()
+    {
+        try
+        {
+            metrics = await AnalyticsService.GetPerformanceMetricsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading performance metrics: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

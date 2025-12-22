@@ -1,0 +1,1091 @@
+@page "/payments/{CustomerId:int}"
+@inject NavigationManager Navigation
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject Boutique.Client.Services.PaymentService PaymentService
+@inject Boutique.Client.Services.OrderService OrderService
+@inject Boutique.Client.Services.ExportService ExportService
+@inject IJSRuntime JSRuntime
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Models
+@using Boutique.Client.Components
+@using Microsoft.JSInterop
+
+
+<div class="payment-container">
+    <div class="page-header text-center">
+        <div class="mb-3">
+            <h1 class="page-title mb-0">
+                <i class="fas fa-credit-card me-3"></i>Payment Management
+            </h1>
+        </div>
+        <p class="page-subtitle mb-3">Customer: @customerName</p>
+        <div>
+            <button class="btn btn-primary me-2" @onclick="ShowAddPaymentModal">
+                <i class="fas fa-plus me-2"></i>Add Payment
+            </button>
+            <button class="btn btn-secondary" @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </button>
+        </div>
+    </div>
+
+    <!-- Payment Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="summary-card total">
+                <div class="summary-icon">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>₹@totalAmount.ToString("N0")</h3>
+                    <p>Total Amount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card paid">
+                <div class="summary-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>₹@paidAmount.ToString("N0")</h3>
+                    <p>Paid Amount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card pending">
+                <div class="summary-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>₹@pendingAmount.ToString("N0")</h3>
+                    <p>Pending Amount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card orders">
+                <div class="summary-icon">
+                    <i class="fas fa-shopping-bag"></i>
+                </div>
+                <div class="summary-content">
+                    <h3>@totalOrders</h3>
+                    <p>Total Orders</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Payment History
+                </h5>
+                <div class="filter-controls">
+                    <select class="form-select form-select-sm" @bind="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Partial">Partial</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (filteredPayments?.Any() == true)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order Details</th>
+                                <th>Amount</th>
+                                <th>Payment Status</th>
+                                <th>Payment Method</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var payment in paginatedPayments.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <h6 class="mb-1">@payment.OrderDescription</h6>
+                                            <small class="text-muted">Order #@payment.OrderId - @payment.CustomerName</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>₹@payment.Amount.ToString("N0")</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(payment.Status)">
+                                            @payment.Status
+                                        </span>
+                                    </td>
+                                    <td>@payment.PaymentMethod</td>
+                                    <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => GenerateReceipt(payment)" title="Generate Receipt">
+                                                <i class="fas fa-receipt"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewPayment(payment)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" @onclick="() => EditPayment(payment)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePayment(payment)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (paginatedPayments.TotalItems > 0)
+                {
+                    <div class="mt-3 px-3 pb-3">
+                        <PaginationComponent CurrentPage="currentPage" 
+                                           TotalItems="paginatedPayments.TotalItems" 
+                                           PageSize="pageSize" 
+                                           OnPageChange="OnPageChanged" />
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center p-4">
+                    <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                    <h5>No payments found</h5>
+                    <p class="text-muted">Add the first payment for this customer</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Payment Modal -->
+@if (showPaymentModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas @(isEditMode ? "fa-edit" : "fa-plus") me-2"></i>
+                        @(isEditMode ? "Edit Payment" : "Add New Payment")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="ClosePaymentModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="paymentModel" OnValidSubmit="SavePayment">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputSelect @bind-Value="paymentModel.OrderId" class="form-select" id="orderId" disabled="@isEditMode">
+                                        <option value="0">Select Order</option>
+                                        @foreach (var order in customerOrders)
+                                        {
+                                            <option value="@order.OrderId">Order #@order.OrderId - ₹@order.TotalAmount (Remaining: ₹@order.RemainingAmount)</option>
+                                        }
+                                    </InputSelect>
+                                    <label for="orderId">Order</label>
+                                    <ValidationMessage For="@(() => paymentModel.OrderId)" class="text-danger small" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputNumber @bind-Value="paymentModel.Amount" class="form-control" id="amount" placeholder="Amount" step="0.01" />
+                                    <label for="amount">Payment Amount (₹)</label>
+                                    <ValidationMessage For="@(() => paymentModel.Amount)" class="text-danger small" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputSelect @bind-Value="paymentModel.PaymentMethod" class="form-select" id="paymentMethod">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Card">Card</option>
+                                        <option value="UPI">UPI</option>
+                                        <option value="BankTransfer">Bank Transfer</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </InputSelect>
+                                    <label for="paymentMethod">Payment Method</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputDate @bind-Value="paymentModel.PaymentDate" class="form-control" id="paymentDate" />
+                                    <label for="paymentDate">Payment Date</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="paymentModel.TransactionId" class="form-control" id="transactionId" placeholder="Transaction ID" />
+                            <label for="transactionId">Transaction ID (Optional)</label>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputTextArea @bind-Value="paymentModel.Notes" class="form-control" id="notes" placeholder="Notes" style="height: 80px;" />
+                            <label for="notes">Notes</label>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="ClosePaymentModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="fas fa-save me-2"></i>
+                                @(isEditMode ? "Update" : "Save") Payment
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* ===================================
+       Payment Management - Enhanced Styles
+       =================================== */
+
+    .payment-container {
+        width: 100%;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        min-height: 100vh;
+        position: relative;
+        padding: 2rem 1rem;
+    }
+
+    .payment-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="money" x="0" y="0" width="25" height="25" patternUnits="userSpaceOnUse"><circle cx="12.5" cy="12.5" r="2" fill="rgba(99,102,241,0.05)"/><text x="12.5" y="17" text-anchor="middle" font-size="8" fill="rgba(99,102,241,0.03)">₹</text></pattern></defs><rect width="100%" height="100%" fill="url(%23money)"/></svg>') repeat;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .page-header {
+        margin-bottom: 2.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 12px;
+        display: inline-block;
+    }
+
+    /* Enhanced Summary Cards */
+    .summary-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .summary-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .summary-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .summary-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin-right: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .summary-card:hover .summary-icon::before {
+        left: 100%;
+    }
+
+    .summary-card:hover .summary-icon {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .summary-card.total .summary-icon { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+    }
+    .summary-card.paid .summary-icon { 
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+    }
+    .summary-card.pending .summary-icon { 
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
+    }
+    .summary-card.orders .summary-icon { 
+        background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); 
+    }
+
+    .summary-content h3 {
+        font-size: 2rem;
+        font-weight: 900;
+        margin: 0 0 0.5rem 0;
+        color: #1f2937;
+        line-height: 1.1;
+    }
+
+    .summary-content p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    /* Enhanced Card Styling */
+    .card {
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 20px 20px 0 0 !important;
+        padding: 2rem;
+        position: relative;
+    }
+
+    .card-header h5 {
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1.4rem;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+
+    .card-body {
+        position: relative;
+    }
+
+    /* Enhanced Filter Controls */
+    .filter-controls {
+        width: 180px;
+    }
+
+    .filter-controls .form-select {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .filter-controls .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        transform: translateY(-2px);
+    }
+
+    /* Enhanced Table Styling */
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        font-weight: 700;
+        color: #1f2937;
+        border-bottom: 2px solid rgba(99, 102, 241, 0.1);
+        padding: 1.25rem 1.5rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background: rgba(99, 102, 241, 0.05);
+        transform: scale(1.01);
+    }
+
+    .table h6 {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .table small {
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .table strong {
+        color: #1f2937;
+        font-weight: 800;
+    }
+
+    .text-success {
+        color: #48bb78 !important;
+        font-weight: 600;
+    }
+
+    /* Enhanced Action Buttons */
+    .btn-group .btn {
+        margin-right: 0.5rem;
+        border-radius: 12px;
+        padding: 0.5rem 0.75rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-group .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.4s;
+    }
+
+    .btn-group .btn:hover::before {
+        left: 100%;
+    }
+
+    .btn-group .btn:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-outline-primary:hover {
+        background: #667eea;
+        border-color: #667eea;
+        color: white;
+    }
+
+    .btn-outline-success:hover {
+        background: #48bb78;
+        border-color: #48bb78;
+        color: white;
+    }
+
+    .btn-outline-warning:hover {
+        background: #ed8936;
+        border-color: #ed8936;
+        color: white;
+    }
+
+    /* Enhanced Primary Button */
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 0.875rem 2rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        border: none;
+        border-radius: 16px;
+        font-weight: 600;
+        padding: 0.875rem 2rem;
+        transition: all 0.3s ease;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+        color: white;
+    }
+
+    /* Enhanced Badge Styling */
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.6rem 1rem;
+        border-radius: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .badge.bg-success { 
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+        box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+    }
+    .badge.bg-warning { 
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+        box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);
+    }
+    .badge.bg-danger { 
+        background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%) !important;
+        box-shadow: 0 4px 15px rgba(245, 101, 101, 0.3);
+    }
+    .badge.bg-secondary { 
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+        box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+    }
+
+    /* Enhanced Modal Styling */
+    .modal-content {
+        border-radius: 24px;
+        border: none;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+        padding: 2rem;
+    }
+
+    .modal-header .modal-title {
+        font-weight: 800;
+        font-size: 1.5rem;
+        letter-spacing: -0.01em;
+    }
+
+    .modal-header .btn-close {
+        filter: invert(1);
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+
+    .modal-header .btn-close:hover {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    .modal-body {
+        padding: 2rem;
+        background: white;
+    }
+
+    .modal-footer {
+        background: #f8fafc;
+        border-top: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 1.5rem 2rem;
+    }
+
+    /* Enhanced Form Controls */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        padding: 1rem 1.25rem;
+        background: white;
+    }
+
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .form-floating > label {
+        color: #6b7280;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+    }
+
+    /* Loading and Empty States */
+    .text-center .fa-3x {
+        font-size: 4rem;
+        opacity: 0.3;
+        color: #667eea;
+    }
+
+    .text-center h5 {
+        color: #1f2937;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .text-center p {
+        font-size: 1.1rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    /* Enhanced Responsive Design */
+    @@media (max-width: 768px) {
+        .payment-container {
+            padding: 1rem 0.5rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+        }
+
+        .summary-card {
+            flex-direction: column;
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .summary-icon {
+            margin-right: 0;
+            margin-bottom: 1rem;
+            width: 70px;
+            height: 70px;
+            font-size: 1.75rem;
+        }
+
+        .summary-content h3 {
+            font-size: 1.75rem;
+        }
+
+        .card-header {
+            padding: 1.5rem;
+        }
+
+        .card-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+
+        .filter-controls {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-group {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .btn-group .btn {
+            margin-right: 0;
+            margin-bottom: 0.25rem;
+            width: 100%;
+        }
+
+        .modal-dialog {
+            margin: 1rem;
+        }
+
+        .modal-header,
+        .modal-body,
+        .modal-footer {
+            padding: 1.5rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .summary-content h3 {
+            font-size: 1.5rem;
+        }
+
+        .summary-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+        }
+
+        .modal-header .modal-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    /* Performance Optimizations */
+    .summary-card,
+    .card,
+    .btn,
+    .form-control,
+    .form-select,
+    .table tbody tr {
+        will-change: transform;
+    }
+
+    /* Reduce motion for users who prefer it */
+    @@media (prefers-reduced-motion: reduce) {
+        .summary-card,
+        .card,
+        .btn,
+        .form-control,
+        .form-select,
+        .table tbody tr,
+        .summary-icon {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public int CustomerId { get; set; }
+    
+    private string customerName = "Customer";
+    private List<PaymentDto> payments = new();
+    private List<PaymentDto> filteredPayments = new();
+    private PaginationModel<PaymentDto> paginatedPayments = new();
+    private List<OrderDto> customerOrders = new();
+    private CreatePaymentDto paymentModel = new();
+    private int? editingPaymentId = null;
+    private string statusFilter = string.Empty;
+    private bool showPaymentModal = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private string? errorMessage = null;
+
+    // Summary data
+    private decimal totalAmount = 0;
+    private decimal paidAmount = 0;
+    private decimal pendingAmount = 0;
+    private int totalOrders = 0;
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            var customer = await CustomerService.GetCustomerByIdAsync(CustomerId);
+            customerName = customer?.CustomerName ?? $"Customer #{CustomerId}";
+            
+            payments = await PaymentService.GetPaymentsByCustomerAsync(CustomerId);
+            ApplyFilters();
+            
+            customerOrders = await OrderService.GetAllOrdersAsync();
+            customerOrders = customerOrders.Where(o => o.CustomerId == CustomerId).ToList();
+            
+            var summary = await PaymentService.GetPaymentSummaryAsync(CustomerId);
+            if (summary != null)
+            {
+                totalAmount = summary.TotalAmount;
+                paidAmount = summary.PaidAmount;
+                pendingAmount = summary.PendingBalance;
+                totalOrders = summary.TotalOrders;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            customerName = $"Customer #{CustomerId}";
+        }
+    }
+
+
+
+
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "completed" => "bg-success",
+            "pending" => "bg-warning",
+            "failed" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void ShowAddPaymentModal()
+    {
+        paymentModel = new CreatePaymentDto { PaymentDate = DateTime.Now, PaymentMethod = "Cash" };
+        editingPaymentId = null;
+        isEditMode = false;
+        errorMessage = null;
+        showPaymentModal = true;
+    }
+
+    private void EditPayment(PaymentDto payment)
+    {
+        paymentModel = new CreatePaymentDto
+        {
+            OrderId = payment.OrderId,
+            Amount = payment.Amount,
+            PaymentMethod = payment.PaymentMethod,
+            TransactionId = payment.TransactionId,
+            PaymentDate = payment.PaymentDate,
+            Notes = payment.Notes
+        };
+        editingPaymentId = payment.PaymentId;
+        isEditMode = true;
+        errorMessage = null;
+        showPaymentModal = true;
+    }
+
+    private void ClosePaymentModal()
+    {
+        showPaymentModal = false;
+        paymentModel = new CreatePaymentDto();
+        editingPaymentId = null;
+        errorMessage = null;
+    }
+
+    private async Task SavePayment()
+    {
+        isSaving = true;
+        errorMessage = null;
+        
+        try
+        {
+            if (isEditMode && editingPaymentId.HasValue)
+            {
+                var updateDto = new UpdatePaymentDto
+                {
+                    Amount = paymentModel.Amount,
+                    PaymentMethod = paymentModel.PaymentMethod,
+                    TransactionId = paymentModel.TransactionId,
+                    PaymentDate = paymentModel.PaymentDate,
+                    Notes = paymentModel.Notes
+                };
+                
+                var success = await PaymentService.UpdatePaymentAsync(editingPaymentId.Value, updateDto);
+                if (!success)
+                {
+                    errorMessage = "Failed to update payment";
+                    return;
+                }
+            }
+            else
+            {
+                var success = await PaymentService.AddPaymentAsync(paymentModel);
+                if (!success)
+                {
+                    errorMessage = "Failed to create payment";
+                    return;
+                }
+            }
+
+            await LoadData();
+            ClosePaymentModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeletePayment(PaymentDto payment)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Delete payment of ₹{payment.Amount}?"))
+        {
+            var success = await PaymentService.DeletePaymentAsync(payment.PaymentId);
+            if (success)
+            {
+                await LoadData();
+            }
+        }
+    }
+    
+    private void ViewPayment(PaymentDto payment) { }
+    private void AddPartialPayment(PaymentDto payment) { }
+    private void ApplyFilters()
+    {
+        filteredPayments = string.IsNullOrEmpty(statusFilter) 
+            ? payments 
+            : payments.Where(p => p.Status.Equals(statusFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        
+        UpdatePagination();
+    }
+
+    private void UpdatePagination()
+    {
+        paginatedPayments = filteredPayments.ToPaginatedList(currentPage, pageSize);
+    }
+
+    private void OnPageChanged(int page)
+    {
+        currentPage = page;
+        UpdatePagination();
+        StateHasChanged();
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/customer-management");
+
+    private async Task GenerateReceipt(PaymentDto payment)
+    {
+        var receiptData = new
+        {
+            id = payment.PaymentId,
+            customerName = payment.CustomerName,
+            amount = payment.Amount,
+            paymentMethod = payment.PaymentMethod,
+            paymentDate = payment.PaymentDate.ToString("dd/MM/yyyy"),
+            transactionId = payment.TransactionId ?? "N/A",
+            orderDescription = payment.OrderDescription,
+            status = payment.Status
+        };
+        
+        await ExportService.GenerateReceiptPdfAsync(receiptData, $"Receipt_{payment.PaymentId}");
+    }
+
+}

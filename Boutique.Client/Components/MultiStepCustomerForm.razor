@@ -1,0 +1,411 @@
+@using Boutique.Client.Models.DTOs
+@using Boutique.Client.Services
+@inject CustomerService CustomerService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="multi-step-form">
+    <div class="step-indicator">
+        <div class="step @(currentStep >= 1 ? "active" : "") @(currentStep > 1 ? "completed" : "")">
+            <span class="step-number">1</span>
+            <span class="step-label">Personal Info</span>
+        </div>
+        <div class="step @(currentStep >= 2 ? "active" : "") @(currentStep > 2 ? "completed" : "")">
+            <span class="step-number">2</span>
+            <span class="step-label">Contact Details</span>
+        </div>
+        <div class="step @(currentStep >= 3 ? "active" : "") @(currentStep > 3 ? "completed" : "")">
+            <span class="step-number">3</span>
+            <span class="step-label">Address & Category</span>
+        </div>
+    </div>
+
+    <EditForm Model="customer" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        @if (currentStep == 1)
+        {
+            <div class="step-content">
+                <h4>Personal Information</h4>
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="customer.CustomerName" class="form-control" placeholder="Full Name" />
+                    <label>Full Name</label>
+                    <ValidationMessage For="@(() => customer.CustomerName)" />
+                </div>
+            </div>
+        }
+        else if (currentStep == 2)
+        {
+            <div class="step-content">
+                <h4>Contact Details</h4>
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="customer.Email" @oninput="OnEmailInput" 
+                              class="@($"form-control {emailValidationClass}")" placeholder="Email" />
+                    <label>Email Address</label>
+                    <ValidationMessage For="@(() => customer.Email)" />
+                    @if (!string.IsNullOrEmpty(emailValidationMessage))
+                    {
+                        <div class="validation-message text-danger">@emailValidationMessage</div>
+                    }
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="customer.PhoneNo" @oninput="OnPhoneInput" 
+                              class="@($"form-control {phoneValidationClass}")" placeholder="Phone" />
+                    <label>Phone Number</label>
+                    <ValidationMessage For="@(() => customer.PhoneNo)" />
+                    @if (!string.IsNullOrEmpty(phoneValidationMessage))
+                    {
+                        <div class="validation-message text-danger">@phoneValidationMessage</div>
+                    }
+                </div>
+            </div>
+        }
+        else if (currentStep == 3)
+        {
+            <div class="step-content">
+                <h4>Address & Gender</h4>
+                <div class="mb-3">
+                    <label class="form-label">Complete Address</label>
+                    <InputTextArea @bind-Value="customer.Address" class="form-control" rows="3" />
+                    <ValidationMessage For="@(() => customer.Address)" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputSelect @bind-Value="customer.Gender" class="form-select">
+                        <option value="">Select Gender</option>
+                        <option value="Women">Women</option>
+                        <option value="Men">Men</option>
+                        <option value="Kids">Kids</option>
+                    </InputSelect>
+                    <label>Customer Gender</label>
+                    <ValidationMessage For="@(() => customer.Gender)" />
+                </div>
+            </div>
+        }
+
+        <div class="form-actions">
+            @if (currentStep > 1)
+            {
+                <button type="button" class="btn btn-secondary" @onclick="PreviousStep">Previous</button>
+            }
+            
+            @if (currentStep < 3)
+            {
+                <button type="button" class="btn btn-primary" @onclick="NextStep" disabled="@(!CanProceedToNext())">
+                    Next
+                </button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-success" disabled="@(isSubmitting || !IsFormValid())">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Create Customer
+                </button>
+            }
+        </div>
+    </EditForm>
+</div>
+
+@if (showSuccessModal)
+{
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Customer Created Successfully!</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Customer <strong>@customer.CustomerName</strong> has been registered successfully.</p>
+                    <p>Would you like to add measurements for this customer now?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    <button class="btn btn-primary" @onclick="GoToMeasurements">Add Measurements</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<style>
+.multi-step-form {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.step-indicator::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #e9ecef;
+    z-index: 1;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+    background: #0d6efd;
+    color: white;
+}
+
+.step.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.step.active .step-label {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.step-content {
+    min-height: 200px;
+    margin-bottom: 2rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.validation-message {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-valid {
+    border-color: #198754;
+}
+</style>
+
+@code {
+    [Parameter] public EventCallback<CustomerDto> OnCustomerCreated { get; set; }
+
+    private CustomerDto customer = new() { Active = true };
+    private int currentStep = 1;
+    private bool isSubmitting = false;
+    private bool showSuccessModal = false;
+    private int createdCustomerId = 0;
+
+    private string emailValidationMessage = "";
+    private string phoneValidationMessage = "";
+    private string emailValidationClass = "";
+    private string phoneValidationClass = "";
+
+    private Timer? emailValidationTimer;
+    private Timer? phoneValidationTimer;
+
+    private void NextStep()
+    {
+        if (CanProceedToNext())
+        {
+            currentStep++;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (currentStep > 1)
+        {
+            currentStep--;
+        }
+    }
+
+    private bool CanProceedToNext()
+    {
+        return currentStep switch
+        {
+            1 => !string.IsNullOrWhiteSpace(customer.CustomerName),
+            2 => !string.IsNullOrWhiteSpace(customer.Email) && 
+                 !string.IsNullOrWhiteSpace(customer.PhoneNo) &&
+                 emailValidationClass != "is-invalid" &&
+                 phoneValidationClass != "is-invalid",
+            _ => false
+        };
+    }
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(customer.CustomerName?.Trim()) &&
+               !string.IsNullOrWhiteSpace(customer.Email?.Trim()) &&
+               !string.IsNullOrWhiteSpace(customer.PhoneNo?.Trim()) &&
+               !string.IsNullOrWhiteSpace(customer.Address?.Trim()) &&
+               !string.IsNullOrWhiteSpace(customer.Gender) &&
+               emailValidationClass != "is-invalid" &&
+               phoneValidationClass != "is-invalid" &&
+               customer.CustomerName?.Trim().Length >= 2 &&
+               customer.Address?.Trim().Length >= 10;
+    }
+
+    private void OnEmailInput(ChangeEventArgs e)
+    {
+        customer.Email = e.Value?.ToString() ?? "";
+        emailValidationTimer?.Dispose();
+        emailValidationTimer = new Timer(async _ => await ValidateEmail(), null, 500, Timeout.Infinite);
+    }
+
+    private void OnPhoneInput(ChangeEventArgs e)
+    {
+        customer.PhoneNo = e.Value?.ToString() ?? "";
+        phoneValidationTimer?.Dispose();
+        phoneValidationTimer = new Timer(async _ => await ValidatePhone(), null, 500, Timeout.Infinite);
+    }
+
+    private async Task ValidateEmail()
+    {
+        if (string.IsNullOrWhiteSpace(customer.Email))
+        {
+            emailValidationClass = "";
+            emailValidationMessage = "";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            var result = await CustomerService.CheckDuplicateAsync(email: customer.Email);
+            if (result.EmailExists)
+            {
+                emailValidationClass = "is-invalid";
+                emailValidationMessage = "Email already exists";
+            }
+            else
+            {
+                emailValidationClass = "is-valid";
+                emailValidationMessage = "";
+            }
+        }
+        catch
+        {
+            emailValidationClass = "";
+            emailValidationMessage = "";
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ValidatePhone()
+    {
+        if (string.IsNullOrWhiteSpace(customer.PhoneNo))
+        {
+            phoneValidationClass = "";
+            phoneValidationMessage = "";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            var result = await CustomerService.CheckDuplicateAsync(phone: customer.PhoneNo);
+            if (result.PhoneExists)
+            {
+                phoneValidationClass = "is-invalid";
+                phoneValidationMessage = "Phone number already exists";
+            }
+            else
+            {
+                phoneValidationClass = "is-valid";
+                phoneValidationMessage = "";
+            }
+        }
+        catch
+        {
+            phoneValidationClass = "";
+            phoneValidationMessage = "";
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (!IsFormValid() || isSubmitting) return;
+
+        isSubmitting = true;
+        try
+        {
+            // Trim all string fields
+            customer.CustomerName = customer.CustomerName?.Trim() ?? "";
+            customer.Email = customer.Email?.Trim() ?? "";
+            customer.PhoneNo = customer.PhoneNo?.Trim() ?? "";
+            customer.Address = customer.Address?.Trim() ?? "";
+            customer.Gender = customer.Gender?.Trim() ?? "";
+            
+            var createdCustomer = await CustomerService.AddCustomerAsync(customer);
+            createdCustomerId = createdCustomer.CustomerId;
+            showSuccessModal = true;
+            await OnCustomerCreated.InvokeAsync(createdCustomer);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error creating customer: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        showSuccessModal = false;
+        Navigation.NavigateTo("/customer-management");
+    }
+
+    private void GoToMeasurements()
+    {
+        showSuccessModal = false;
+        Navigation.NavigateTo($"/measurements/{createdCustomerId}");
+    }
+
+    public void Dispose()
+    {
+        emailValidationTimer?.Dispose();
+        phoneValidationTimer?.Dispose();
+    }
+}

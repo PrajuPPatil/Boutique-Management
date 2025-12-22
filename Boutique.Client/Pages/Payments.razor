@@ -1,0 +1,401 @@
+@page "/payment-management"
+@inject Boutique.Client.Services.PaymentService PaymentService
+@inject Boutique.Client.Services.OrderService OrderService
+@inject Boutique.Client.Services.CustomerService CustomerService
+@inject IJSRuntime JSRuntime
+@using Boutique.Client.Models.DTOs
+@using Microsoft.JSInterop
+
+<div class="payment-container">
+    <div class="page-header">
+        <h1><i class="fas fa-credit-card me-3"></i>Payment Management</h1>
+        <button class="btn btn-primary" @onclick="ShowAddModal">
+            <i class="fas fa-plus me-2"></i>Add Payment
+        </button>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card total">
+                <i class="fas fa-rupee-sign"></i>
+                <div>
+                    <h3>₹@totalRevenue.ToString("N0")</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card paid">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <h3>₹@paidAmount.ToString("N0")</h3>
+                    <p>Paid Amount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card pending">
+                <i class="fas fa-clock"></i>
+                <div>
+                    <h3>₹@pendingAmount.ToString("N0")</h3>
+                    <p>Pending</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card count">
+                <i class="fas fa-receipt"></i>
+                <div>
+                    <h3>@totalPayments</h3>
+                    <p>Total Payments</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (payments == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!payments.Any())
+    {
+        <div class="empty-state">
+            <i class="fas fa-credit-card fa-4x"></i>
+            <h3>No Payments Found</h3>
+            <p>Start by adding your first payment</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Customer</th>
+                        <th>Order</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in payments)
+                    {
+                        <tr>
+                            <td><strong>#@p.PaymentId</strong></td>
+                            <td>@p.CustomerName</td>
+                            <td>Order #@p.OrderId</td>
+                            <td><strong>₹@p.Amount.ToString("N0")</strong></td>
+                            <td><span class="badge bg-info">@p.PaymentMethod</span></td>
+                            <td><span class="badge @GetStatusClass(p.Status)">@p.Status</span></td>
+                            <td>@p.PaymentDate.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewPayment(p)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => EditPayment(p)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePayment(p.PaymentId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5><i class="fas @(isEditMode ? "fa-edit" : "fa-plus") me-2"></i>@(isEditMode ? "Edit" : "Add") Payment</h5>
+                    <button class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="paymentModel" OnValidSubmit="SavePayment">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(modalError))
+                        {
+                            <div class="alert alert-danger">@modalError</div>
+                        }
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Order</label>
+                                <InputSelect @bind-Value="paymentModel.OrderId" class="form-select" disabled="@isEditMode">
+                                    <option value="0">Select Order</option>
+                                    @foreach (var o in orders)
+                                    {
+                                        <option value="@o.OrderId">Order #@o.OrderId - @o.CustomerName (₹@o.RemainingAmount remaining)</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => paymentModel.OrderId)" class="text-danger" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Amount (₹)</label>
+                                <InputNumber @bind-Value="paymentModel.Amount" class="form-control" step="0.01" />
+                                <ValidationMessage For="@(() => paymentModel.Amount)" class="text-danger" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Payment Method</label>
+                                <InputSelect @bind-Value="paymentModel.PaymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="BankTransfer">Bank Transfer</option>
+                                    <option value="Cheque">Cheque</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Payment Date</label>
+                                <InputDate @bind-Value="paymentModel.PaymentDate" class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Transaction ID (Optional)</label>
+                            <InputText @bind-Value="paymentModel.TransactionId" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Notes</label>
+                            <InputTextArea @bind-Value="paymentModel.Notes" class="form-control" rows="3" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                Save Payment
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showViewModal && selectedPayment != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5><i class="fas fa-receipt me-2"></i>Payment Details</h5>
+                    <button class="btn-close" @onclick="CloseViewModal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-borderless">
+                        <tr><th>Payment ID:</th><td>#@selectedPayment.PaymentId</td></tr>
+                        <tr><th>Customer:</th><td>@selectedPayment.CustomerName</td></tr>
+                        <tr><th>Order:</th><td>Order #@selectedPayment.OrderId</td></tr>
+                        <tr><th>Amount:</th><td><strong>₹@selectedPayment.Amount.ToString("N2")</strong></td></tr>
+                        <tr><th>Method:</th><td>@selectedPayment.PaymentMethod</td></tr>
+                        <tr><th>Status:</th><td><span class="badge @GetStatusClass(selectedPayment.Status)">@selectedPayment.Status</span></td></tr>
+                        <tr><th>Transaction ID:</th><td>@(selectedPayment.TransactionId ?? "N/A")</td></tr>
+                        <tr><th>Date:</th><td>@selectedPayment.PaymentDate.ToString("MMMM dd, yyyy")</td></tr>
+                        <tr><th>Notes:</th><td>@(selectedPayment.Notes ?? "N/A")</td></tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseViewModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .payment-container { padding: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .page-header h1 { font-size: 2rem; font-weight: 700; margin: 0; }
+    
+    .stat-card { background: white; border-radius: 12px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .stat-card i { font-size: 2.5rem; }
+    .stat-card.total i { color: #667eea; }
+    .stat-card.paid i { color: #48bb78; }
+    .stat-card.pending i { color: #ed8936; }
+    .stat-card.count i { color: #9f7aea; }
+    .stat-card h3 { font-size: 1.75rem; font-weight: 700; margin: 0; }
+    .stat-card p { margin: 0; color: #6c757d; font-size: 0.9rem; }
+    
+    .empty-state { text-align: center; padding: 4rem; color: #6c757d; background: white; border-radius: 12px; }
+    .table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .table th { background: #f8f9fa; font-weight: 600; }
+    .btn-sm { margin-right: 0.5rem; }
+    .modal-content { border-radius: 16px; }
+    .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+</style>
+
+@code {
+    private List<PaymentDto>? payments;
+    private List<OrderDto> orders = new();
+    private CreatePaymentDto paymentModel = new();
+    private PaymentDto? selectedPayment;
+    private int? editingPaymentId;
+    private bool showModal = false;
+    private bool showViewModal = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? modalError;
+
+    private decimal totalRevenue = 0;
+    private decimal paidAmount = 0;
+    private decimal pendingAmount = 0;
+    private int totalPayments = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            payments = await PaymentService.GetPaymentsAsync();
+            orders = await OrderService.GetAllOrdersAsync();
+            
+            if (payments != null)
+            {
+                totalPayments = payments.Count;
+                paidAmount = payments.Sum(p => p.Amount);
+            }
+            
+            if (orders != null)
+            {
+                totalRevenue = orders.Sum(o => o.TotalAmount);
+                pendingAmount = totalRevenue - paidAmount;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        paymentModel = new CreatePaymentDto { PaymentDate = DateTime.Now, PaymentMethod = "Cash" };
+        editingPaymentId = null;
+        isEditMode = false;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void EditPayment(PaymentDto p)
+    {
+        paymentModel = new CreatePaymentDto
+        {
+            OrderId = p.OrderId,
+            Amount = p.Amount,
+            PaymentMethod = p.PaymentMethod,
+            TransactionId = p.TransactionId,
+            PaymentDate = p.PaymentDate,
+            Notes = p.Notes
+        };
+        editingPaymentId = p.PaymentId;
+        isEditMode = true;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void ViewPayment(PaymentDto p)
+    {
+        selectedPayment = p;
+        showViewModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        paymentModel = new();
+        editingPaymentId = null;
+    }
+
+    private void CloseViewModal()
+    {
+        showViewModal = false;
+        selectedPayment = null;
+    }
+
+    private async Task SavePayment()
+    {
+        isSaving = true;
+        modalError = null;
+        
+        try
+        {
+            if (isEditMode && editingPaymentId.HasValue)
+            {
+                var updateDto = new UpdatePaymentDto
+                {
+                    Amount = paymentModel.Amount,
+                    PaymentMethod = paymentModel.PaymentMethod,
+                    TransactionId = paymentModel.TransactionId,
+                    PaymentDate = paymentModel.PaymentDate,
+                    Notes = paymentModel.Notes
+                };
+                
+                var success = await PaymentService.UpdatePaymentAsync(editingPaymentId.Value, updateDto);
+                if (!success) throw new Exception("Failed to update payment");
+            }
+            else
+            {
+                var success = await PaymentService.AddPaymentAsync(paymentModel);
+                if (!success) throw new Exception("Failed to create payment");
+            }
+            
+            await LoadData();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            modalError = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeletePayment(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Delete this payment?"))
+        {
+            var success = await PaymentService.DeletePaymentAsync(id);
+            if (success) await LoadData();
+        }
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "completed" => "bg-success",
+            "pending" => "bg-warning",
+            "failed" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

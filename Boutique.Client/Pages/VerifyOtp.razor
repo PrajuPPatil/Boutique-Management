@@ -1,0 +1,201 @@
+@page "/verify-otp"
+@inject Boutique.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
+@layout EmptyLayout
+
+<div class="otp-container">
+    <div class="container-fluid">
+        <div class="row justify-content-center align-items-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="otp-card">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope-open text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h2 class="otp-title mb-2">Verify Your Email</h2>
+                        <p class="text-muted">We've sent a 6-digit verification code to <strong>@otpModel.Email</strong></p>
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Please check your email (including spam folder) for the verification code.
+                        </div>
+                        
+                        <div class="alert alert-success mb-4">
+                            <i class="fas fa-paper-plane me-2"></i>
+                            <strong>OTP Sent!</strong> Check your email for the 6-digit verification code.
+                        </div>
+                    </div>
+
+                    <EditForm Model="otpModel" OnValidSubmit="HandleVerifyOtp">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(otpError))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                @otpError
+                                <button type="button" class="btn-close" @onclick="() => otpError = string.Empty"></button>
+                            </div>
+                        }
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="otpModel.Email" class="form-control" id="email" placeholder="Email" readonly />
+                            <label for="email"><i class="fas fa-envelope me-2"></i>Email Address</label>
+                        </div>
+
+                        <div class="form-floating mb-4">
+                            <InputText @bind-Value="otpModel.OtpCode" class="form-control" id="otp" placeholder="Enter OTP" maxlength="6" />
+                            <label for="otp"><i class="fas fa-key me-2"></i>Verification Code</label>
+                            <ValidationMessage For="@(() => otpModel.OtpCode)" class="text-danger small mt-1" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mb-3" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Verifying...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-check me-2"></i>
+                                <span>Verify Email</span>
+                            }
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-muted mb-2">Didn't receive the code? 
+                                <button type="button" class="btn btn-link p-0 text-decoration-none" @onclick="ResendOtp">Resend</button>
+                            </p>
+                            <small class="text-muted">
+                                Code expires in 10 minutes • Maximum 3 attempts
+                            </small>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .otp-container {
+        min-height: calc(100vh - 200px);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+    }
+
+    .otp-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+
+    .otp-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    .form-floating > .form-control {
+        height: 3.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-floating > .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-floating > label {
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        height: 3.5rem;
+        border-radius: 0.75rem;
+        font-weight: 600;
+        font-size: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .alert {
+        border-radius: 0.75rem;
+        border: none;
+    }
+
+    .text-primary {
+        color: #667eea !important;
+    }
+</style>
+
+@code {
+    private OtpVerifyDTO otpModel = new();
+    private string otpError = string.Empty;
+    private bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("email", out var email))
+        {
+            otpModel.Email = email.ToString();
+        }
+        else
+        {
+            Navigation.NavigateTo("/register");
+        }
+    }
+
+    private async Task HandleVerifyOtp()
+    {
+        if (isLoading) return;
+        
+        isLoading = true;
+        otpError = string.Empty;
+        
+        try
+        {
+            // Call backend API to verify OTP
+            await AuthService.VerifyOtpAsync(otpModel);
+            Navigation.NavigateTo("/login?verified=true", true);
+        }
+        catch (HttpRequestException)
+        {
+            otpError = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception)
+        {
+            otpError = "Invalid or expired verification code. Please check your code or request a new one.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ResendOtp()
+    {
+        try
+        {
+            // Call backend API to resend OTP
+            await AuthService.ResendOtpAsync(otpModel.Email);
+            otpError = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            otpError = "Failed to resend verification code. Please try again.";
+        }
+    }
+}
