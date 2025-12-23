@@ -5,7 +5,7 @@
 @using Boutique.Client.Components
 @inject CustomerService CustomerService
 @inject OrderService OrderService
-@inject MeasurementService MeasurementService
+@inject CustomerMeasurementService CustomerMeasurementService
 @inject PaymentService PaymentService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -177,21 +177,21 @@
                     {
                         <div class="card">
                             <div class="card-body">
-                                @foreach (var typeGroup in measurements.GroupBy(m => m.TypeName))
+                                @foreach (var typeGroup in measurements.GroupBy(m => m.GarmentType))
                                 {
                                     <div class="mb-4">
                                         <h5 class="text-primary">@typeGroup.Key</h5>
                                         <div class="timeline">
-                                            @foreach (var measurement in typeGroup.OrderByDescending(m => m.EntryDate))
+                                            @foreach (var measurement in typeGroup.OrderByDescending(m => m.CreatedDate))
                                             {
                                                 <div class="timeline-item">
                                                     <div class="timeline-marker"></div>
                                                     <div class="timeline-content">
                                                         <div class="d-flex justify-content-between">
                                                             <strong>Measurement ID: @measurement.MeasurementId</strong>
-                                                            <small class="text-muted">@measurement.EntryDate.ToString("dd/MM/yyyy")</small>
+                                                            <small class="text-muted">@measurement.CreatedDate.ToString("dd/MM/yyyy")</small>
                                                         </div>
-                                                        <p class="mb-1">Fabric: @measurement.FabricColor</p>
+                                                        <p class="mb-1">@measurement.MeasurementType: @measurement.MeasurementValue @measurement.Unit</p>
                                                     </div>
                                                 </div>
                                             }
@@ -236,7 +236,7 @@
                                         <option value="">Select Measurement</option>
                                         @foreach (var measurement in measurements)
                                         {
-                                            <option value="@measurement.MeasurementId">@measurement.TypeName - @measurement.EntryDate.ToString("dd/MM/yyyy")</option>
+                                            <option value="@measurement.MeasurementId">@measurement.GarmentType - @measurement.CreatedDate.ToString("dd/MM/yyyy")</option>
                                         }
                                     </InputSelect>
                                     <label>Measurement</label>
@@ -365,7 +365,7 @@
     private List<OrderDto> orders = new();
     private List<OrderDto> filteredOrders = new();
     private PaginationModel<OrderDto> paginatedOrders = new();
-    private List<MeasurementDto> measurements = new();
+    private List<CustomerMeasurement> measurements = new();
     private CreateOrderDto createOrderModel = new();
     private OrderTimelineDto? orderTimeline = null;
     private List<string> garmentTypes = new();
@@ -419,8 +419,14 @@
 
     private async Task LoadMeasurements()
     {
-        measurements = await MeasurementService.GetMeasurementsByCustomerAsync(CustomerId);
-        garmentTypes = measurements.Select(m => m.TypeName).Distinct().Where(t => !string.IsNullOrEmpty(t)).ToList()!;
+        var allMeasurements = await CustomerMeasurementService.GetCustomerMeasurementsAsync(CustomerId);
+        // Group measurements by GarmentType and CreatedDate to get unique measurement sets
+        measurements = allMeasurements
+            .GroupBy(m => new { m.GarmentType, Date = m.CreatedDate.Date })
+            .Select(g => g.First()) // Take first measurement from each group
+            .OrderByDescending(m => m.CreatedDate)
+            .ToList();
+        garmentTypes = measurements.Select(m => m.GarmentType).Distinct().Where(t => !string.IsNullOrEmpty(t)).ToList()!;
     }
 
     private async Task LoadPaymentSummary()

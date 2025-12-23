@@ -22,7 +22,7 @@ namespace Boutique.Client.Services
         // Get all measurements for a specific customer
         public async Task<List<MeasurementDto>> GetMeasurementsByCustomerAsync(int customerId)
         {
-            var response = await _httpClient.GetAsync($"api/measurement/customer/{customerId}");
+            var response = await _httpClient.GetAsync($"api/CustomerMeasurement/customer/{customerId}");
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();

@@ -113,18 +113,30 @@ namespace WebApiBoutique.Services
         // Update existing customer information
         public async Task<bool> UpdateCustomerAsync(Customer customer)
         {
-            // Validate input parameter
-            if (customer == null) return false;
+            try
+            {
+                if (customer == null) return false;
 
-            // Find existing customer in database
-            var existingCustomer = await _context.Customers.FindAsync(customer.CustomerId);
-            if (existingCustomer == null) return false;
-            
-            Console.WriteLine(existingCustomer);
-            // Update all properties of existing customer with new values
-            _context.Entry(existingCustomer).CurrentValues.SetValues(customer);
-            await _context.SaveChangesAsync();  // Save changes to database
-            return true;
+                var existingCustomer = await _context.Customers.FindAsync(customer.CustomerId);
+                if (existingCustomer == null) return false;
+
+                // Update properties manually to ensure they're saved
+                existingCustomer.CustomerName = customer.CustomerName;
+                existingCustomer.Email = customer.Email;
+                existingCustomer.PhoneNo = customer.PhoneNo;
+                existingCustomer.Address = customer.Address;
+                existingCustomer.Gender = customer.Gender;
+                existingCustomer.Active = customer.Active;
+                // Don't update CreatedDate or BusinessId
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating customer: {ex.Message}");
+                return false;
+            }
         }
 
         public async Task<bool> DeleteCustomerAsync(int id)

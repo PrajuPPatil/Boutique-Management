@@ -31,9 +31,17 @@ namespace WebApiBoutique.Controllers
         [HttpGet("customer/{customerId}")]
         public async Task<ActionResult<List<MeasurementDto>>> GetMeasurementsByCustomer(int customerId)
         {
-            // Fetch all measurement records for a specific customer
-            var measurements = await _measurementService.GetMeasurementsByCustomerAsync(customerId);
-            return Ok(measurements);
+            try
+            {
+                var businessId = GetBusinessIdFromToken();
+                var measurements = await _measurementService.GetMeasurementsByCustomerAsync(customerId, businessId);
+                return Ok(measurements);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading measurements: {ex.Message}");
+                return Ok(new List<MeasurementDto>()); // Return empty list instead of error
+            }
         }
 
         // GET: api/Measurement/{id} - Get specific measurement by ID

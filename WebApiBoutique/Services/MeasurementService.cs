@@ -18,11 +18,11 @@ namespace WebApiBoutique.Services
         }
 
         // Get all measurements for a specific customer with garment type information
-        public async Task<List<MeasurementDto>> GetMeasurementsByCustomerAsync(int customerId)
+        public async Task<List<MeasurementDto>> GetMeasurementsByCustomerAsync(int customerId, int businessId)
         {
             // Join measurements with garment types to get complete information
             return await _context.Measurements
-                .Where(m => m.CustomerId == customerId)  // Filter by customer
+                .Where(m => m.CustomerId == customerId && m.BusinessId == businessId)  // Filter by customer and business
                 .Join(_context.Types, m => m.TypeId, t => t.TypeId, (m, t) => new MeasurementDto  // Join with Types table
                 {
                     MeasurementId = m.MeasurementId,

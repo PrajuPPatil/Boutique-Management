@@ -5,7 +5,7 @@ namespace WebApiBoutique.Services
 {
     public interface IMeasurementService
     {
-        Task<List<MeasurementDto>> GetMeasurementsByCustomerAsync(int customerId);
+        Task<List<MeasurementDto>> GetMeasurementsByCustomerAsync(int customerId, int businessId);
         Task<MeasurementDto?> GetMeasurementByIdAsync(int id);
         Task<bool> CreateMeasurementAsync(Measurement measurement);
         Task<bool> UpdateMeasurementAsync(int id, Measurement measurement);
